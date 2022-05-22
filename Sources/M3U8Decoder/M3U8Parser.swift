@@ -1,8 +1,25 @@
+//  M3U8Parser.swift
 //
-//  File.swift
-//  
+//  Created by Iurii Khvorost <iurii.khvorost@gmail.com> on 2022/05/22.
+//  Copyright © 2022 Iurii Khvorost. All rights reserved.
 //
-//  Created by Iurii Khvorost on 21.05.2022.
+//  Permission is hereby granted, free of charge, to any person obtaining a copy
+//  of this software and associated documentation files (the "Software"), to deal
+//  in the Software without restriction, including without limitation the rights
+//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  copies of the Software, and to permit persons to whom the Software is
+//  furnished to do so, subject to the following conditions:
+//
+//  The above copyright notice and this permission notice shall be included in
+//  all copies or substantial portions of the Software.
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//  FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//  THE SOFTWARE.
 //
 
 import Foundation
@@ -10,39 +27,22 @@ import Foundation
 extension String : LocalizedError {
     public var errorDescription: String? { return self }
     
-    func replacingHypen() -> String {
-        replacingOccurrences(of: "-", with: "_")
-    }
-    
     func trimmingQuotes() -> String {
         trimmingCharacters(in: CharacterSet(charactersIn: "\""))
     }
 }
 
-public enum KeyDecodingStrategy {
-    case useDefaultKeys
-    case convertFromSnakeCase
-    //case custom((_ codingPath: [CodingKey]) -> CodingKey)
-}
-
-// TODO: parse URL, file URL, combine
-// RESOLUTION width height
-public class M3U8Parser {
-    public var autoDetectValueType = true
-
+// TODO: RESOLUTION width height, EXTINF
+class M3U8Parser {
     private static let regexTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
     private static let regexAttr = try! NSRegularExpression(pattern: "([^=,]+)=((\"([^\"]+)\")|([^,]+))")
     
     private static let boolValues = ["YES", "NO"]
     
-    public func parse(data: Data) -> [String : Any]? {
-        guard let text = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-        return parse(text: text)
-    }
+    var autoDetectValueType = true
+    var keyDecodingStrategy: M3U8Decoder.KeyDecodingStrategy = .snakeCase
     
-    public func parse(text: String) -> [String : Any]? {
+    func parse(text: String) -> [String : Any]? {
         guard text.isEmpty == false else {
             return nil
         }
@@ -60,29 +60,40 @@ public class M3U8Parser {
             let range = NSRange(location: 0, length: line.utf16.count)
             Self.regexTag.matches(in: line, options: [], range: range).forEach {
                 if let tagRange = Range($0.range(at: 1), in: text), let attrRange = Range($0.range(at: 2), in: line) {
-                    let tag = String(line[tagRange]).replacingHypen()
+                    let tagKey = key(text: String(line[tagRange]))
                     let attr = String(line[attrRange])
                     
                     let nextLine = i < (items.count - 1) ? items[i + 1] : nil
                     let value = attr == "" ? true : tagAttributes(text: attr, nextLine: nextLine)
                     
-                    if let item = dict[tag] {
+                    if let item = dict[tagKey] {
                         if var array = item as? [Any] {
                             array.append(value)
-                            dict[tag] = array
+                            dict[tagKey] = array
                         }
                         else {
-                            dict[tag] = [value]
+                            dict[tagKey] = [value]
                         }
                     }
                     else {
-                        dict[tag] = value
+                        dict[tagKey] = value
                     }
                 }
             }
         }
-        //print(dict)
         return dict
+    }
+    
+    private func key(text: String) -> String {
+        switch keyDecodingStrategy {
+        case .snakeCase:
+            fallthrough
+        case .camelCase:
+            return text.lowercased().replacingOccurrences(of: "-", with: "_")
+            
+        case let .custom(f):
+            return f(text)
+        }
     }
     
     private func value(text: String) -> Any {
@@ -109,7 +120,7 @@ public class M3U8Parser {
                 return nil
             }
             
-            let key = String(text[keyRange]).replacingHypen()
+            let key = key(text: String(text[keyRange]))
             let value = String(text[valueRange]).trimmingQuotes()
             return (key, self.value(text: value))
         }
