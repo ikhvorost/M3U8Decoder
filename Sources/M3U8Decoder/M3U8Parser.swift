@@ -26,10 +26,6 @@ import Foundation
 
 extension String : LocalizedError {
     public var errorDescription: String? { return self }
-    
-    func trimmingQuotes() -> String {
-        trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-    }
 }
 
 // TODO: RESOLUTION width height, EXTINF
@@ -53,30 +49,31 @@ class M3U8Parser {
         for i in 0..<items.count {
             let line = items[i]
             
-            guard line.hasPrefix("#") else {
+            guard line.isEmpty == false, line.hasPrefix("#") else {
                 continue
             }
             
             let range = NSRange(location: 0, length: line.utf16.count)
             Self.regexTag.matches(in: line, options: [], range: range).forEach {
                 if let tagRange = Range($0.range(at: 1), in: text), let attrRange = Range($0.range(at: 2), in: line) {
-                    let tagKey = key(text: String(line[tagRange]))
+                    let tag = String(line[tagRange])
                     let attr = String(line[attrRange])
                     
                     let nextLine = i < (items.count - 1) ? items[i + 1] : nil
-                    let value = attr == "" ? true : tagAttributes(text: attr, nextLine: nextLine)
+                    let value = parseAttributes(tag: tag, text: attr, nextLine: nextLine)
                     
-                    if let item = dict[tagKey] {
+                    let key = key(text: tag)
+                    if let item = dict[key] {
                         if var array = item as? [Any] {
                             array.append(value)
-                            dict[tagKey] = array
+                            dict[key] = array
                         }
                         else {
-                            dict[tagKey] = [value]
+                            dict[key] = [item, value]
                         }
                     }
                     else {
-                        dict[tagKey] = value
+                        dict[key] = value
                     }
                 }
             }
@@ -96,8 +93,9 @@ class M3U8Parser {
         }
     }
     
+    // TODO: regex for types
     private func value(text: String) -> Any {
-        guard autoDetectValueType else {
+        guard autoDetectValueType, text.count < 10  else {
             return text
         }
         
@@ -110,23 +108,45 @@ class M3U8Parser {
         else if Self.boolValues.contains(text) {
             return text == "YES"
         }
+        
         return text
     }
     
-    private func tagAttributes(text: String, nextLine: String?) -> Any {
+    private func parseAttributes(tag: String, text: String, nextLine: String?) -> Any {
+        guard text.isEmpty == false else {
+            return true
+        }
+        
+        var keyValues = [(String, Any)]()
+        
+        // #EXTINF:<duration>,[<title>]
+        if tag == "EXTINF" {
+            let items = text.components(separatedBy: ",")
+            if let first = items.first {
+                keyValues.append(("duration", self.value(text: first)))
+            }
+            
+            if items.count == 2, let last = items.last, last.isEmpty == false, last.contains("=") == false {
+                keyValues.append(("title", self.value(text: last)))
+            }
+        }
+
         let range = NSRange(location: 0, length: text.utf16.count)
-        var keyValues: [(String, Any)] = Self.regexAttr.matches(in: text, options: [], range: range).compactMap {
-            guard let keyRange = Range($0.range(at: 1), in: text), let valueRange = Range($0.range(at: 2), in: text) else {
-                return nil
+        Self.regexAttr.matches(in: text, options: [], range: range).forEach {
+            guard let keyRange = Range($0.range(at: 1), in: text),
+                  let valueRange = Range($0.range(at: 2), in: text)
+            else {
+                return
             }
             
             let key = key(text: String(text[keyRange]))
-            let value = String(text[valueRange]).trimmingQuotes()
-            return (key, self.value(text: value))
+            let value = String(text[valueRange]).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            keyValues.append((key, self.value(text: value)))
         }
         
+        // TODO: file path regex
         if let line = nextLine, line.isEmpty == false, line.hasPrefix("#") == false {
-            keyValues.append(("URI", line))
+            keyValues.append(("uri", line))
         }
         
         // TODO: verify unique keys

@@ -46,11 +46,11 @@ public class M3U8Decoder {
         }
         
         // Debug
-        print(dict)
+        //print(dict)
         
         let jsonData = try JSONSerialization.data(withJSONObject: dict)
         let decoder = JSONDecoder()
-        
+        decoder.dateDecodingStrategy = .iso8601
         if case .camelCase = keyDecodingStrategy {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
         }
