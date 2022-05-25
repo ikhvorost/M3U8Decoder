@@ -27,13 +27,14 @@ import Foundation
 public class M3U8Decoder {
     
     public enum KeyDecodingStrategy {
-        //case original
+        //case original?
         case snakeCase
         case camelCase
         case custom((_ key: String) -> String)
     }
     
     public var keyDecodingStrategy: KeyDecodingStrategy = .snakeCase
+    public var dateDecodingStrategy: JSONDecoder.DateDecodingStrategy = .iso8601
     
     public init() {
     }
@@ -48,13 +49,13 @@ public class M3U8Decoder {
         // Debug
         //print(dict)
         
-        let jsonData = try JSONSerialization.data(withJSONObject: dict)
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        decoder.dateDecodingStrategy = dateDecodingStrategy
         if case .camelCase = keyDecodingStrategy {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
         }
         
+        let jsonData = try JSONSerialization.data(withJSONObject: dict)
         return try decoder.decode(type, from: jsonData)
     }
     

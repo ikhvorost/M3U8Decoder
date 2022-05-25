@@ -28,7 +28,6 @@ extension String : LocalizedError {
     public var errorDescription: String? { return self }
 }
 
-// TODO: RESOLUTION width height, EXTINF
 class M3U8Parser {
     private static let regexTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
     private static let regexAttr = try! NSRegularExpression(pattern: "([^=,]+)=((\"([^\"]+)\")|([^,]+))")
@@ -99,11 +98,8 @@ class M3U8Parser {
             return text
         }
         
-        if let i = Int(text) {
-            return i
-        }
-        else if let d = Double(text) {
-            return d
+        if let number = Double(text) {
+            return number
         }
         else if Self.boolValues.contains(text) {
             return text == "YES"
@@ -117,20 +113,21 @@ class M3U8Parser {
             return true
         }
         
-        var keyValues = [(String, Any)]()
+        var keyValues = [String : Any]()
         
         // #EXTINF:<duration>,[<title>]
+        // TODO: regex for EXTINF
         if tag == "EXTINF" {
             let items = text.components(separatedBy: ",")
             if let first = items.first {
-                keyValues.append(("duration", self.value(text: first)))
+                keyValues["duration"] = self.value(text: first)
             }
             
             if items.count == 2, let last = items.last, last.isEmpty == false, last.contains("=") == false {
-                keyValues.append(("title", self.value(text: last)))
+                keyValues["title"] = self.value(text: last)
             }
         }
-
+        
         let range = NSRange(location: 0, length: text.utf16.count)
         Self.regexAttr.matches(in: text, options: [], range: range).forEach {
             guard let keyRange = Range($0.range(at: 1), in: text),
@@ -141,17 +138,17 @@ class M3U8Parser {
             
             let key = key(text: String(text[keyRange]))
             let value = String(text[valueRange]).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-            keyValues.append((key, self.value(text: value)))
+            keyValues[key] = self.value(text: value)
         }
         
         // TODO: file path regex
+        // Next line
         if let line = nextLine, line.isEmpty == false, line.hasPrefix("#") == false {
-            keyValues.append(("uri", line))
+            keyValues["uri"] = line
         }
         
-        // TODO: verify unique keys
         return keyValues.count > 0
-            ? Dictionary(uniqueKeysWithValues: keyValues)
+            ? keyValues
             : value(text: text)
     }
 }
