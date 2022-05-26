@@ -24,6 +24,31 @@
 
 import Foundation
 
+fileprivate extension DateFormatter {
+    static let iso8601withFractionalSeconds: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX"
+        return formatter
+    }()
+    
+    static let iso8601: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssXXXXX"
+        return formatter
+    }()
+}
+
+fileprivate extension JSONDecoder.DateDecodingStrategy {
+    static let customISO8601 = custom {
+        let container = try $0.singleValueContainer()
+        let string = try container.decode(String.self)
+        if let date = DateFormatter.iso8601withFractionalSeconds.date(from: string) ?? DateFormatter.iso8601.date(from: string) {
+            return date
+        }
+        throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date: \(string)")
+    }
+}
+
 public class M3U8Decoder {
     
     public enum KeyDecodingStrategy {
@@ -34,7 +59,6 @@ public class M3U8Decoder {
     }
     
     public var keyDecodingStrategy: KeyDecodingStrategy = .snakeCase
-    public var dateDecodingStrategy: JSONDecoder.DateDecodingStrategy = .iso8601
     
     public init() {
     }
@@ -49,8 +73,11 @@ public class M3U8Decoder {
         // Debug
         //print(dict)
         
+        // Decoder
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = dateDecodingStrategy
+        
+        decoder.dateDecodingStrategy = .customISO8601
+        
         if case .camelCase = keyDecodingStrategy {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
         }

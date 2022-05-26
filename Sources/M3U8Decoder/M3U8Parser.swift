@@ -34,6 +34,9 @@ class M3U8Parser {
     
     private static let boolValues = ["YES", "NO"]
     
+    private static let uriKey = "uri"
+    private static let arrayTags = ["EXTINF", "EXT-X-BYTERANGE"]
+    
     var autoDetectValueType = true
     var keyDecodingStrategy: M3U8Decoder.KeyDecodingStrategy = .snakeCase
     
@@ -48,7 +51,19 @@ class M3U8Parser {
         for i in 0..<items.count {
             let line = items[i]
             
-            guard line.isEmpty == false, line.hasPrefix("#") else {
+            guard line.isEmpty == false else {
+                continue
+            }
+            
+            // URI
+            guard line.hasPrefix("#") else {
+                if var items = dict[Self.uriKey] as? [Any] {
+                    items.append(line)
+                    dict[Self.uriKey] = items
+                }
+                else {
+                    dict[Self.uriKey] = [line]
+                }
                 continue
             }
             
@@ -58,21 +73,25 @@ class M3U8Parser {
                     let tag = String(line[tagRange])
                     let attr = String(line[attrRange])
                     
-                    let nextLine = i < (items.count - 1) ? items[i + 1] : nil
-                    let value = parseAttributes(tag: tag, text: attr, nextLine: nextLine)
-                    
                     let key = key(text: tag)
+                    let value = parseAttributes(tag: tag, text: attr)
+                    
                     if let item = dict[key] {
-                        if var array = item as? [Any] {
-                            array.append(value)
-                            dict[key] = array
+                        if var items = item as? [Any] {
+                            items.append(value)
+                            dict[key] = items
                         }
                         else {
                             dict[key] = [item, value]
                         }
                     }
                     else {
-                        dict[key] = value
+                        if Self.arrayTags.contains(tag) {
+                            dict[key] = [value]
+                        }
+                        else {
+                            dict[key] = value
+                        }
                     }
                 }
             }
@@ -94,28 +113,30 @@ class M3U8Parser {
     
     // TODO: regex for types
     private func value(text: String) -> Any {
-        guard autoDetectValueType, text.count < 10  else {
+        guard autoDetectValueType  else {
             return text
         }
         
-        if let number = Double(text) {
-            return number
-        }
-        else if Self.boolValues.contains(text) {
-            return text == "YES"
+        if text.count < 10 {
+            if let number = Double(text) {
+                return number
+            }
+            else if Self.boolValues.contains(text) {
+                return text == "YES"
+            }
         }
         
         return text
     }
     
-    private func parseAttributes(tag: String, text: String, nextLine: String?) -> Any {
+    private func parseAttributes(tag: String, text: String) -> Any {
         guard text.isEmpty == false else {
             return true
         }
         
         var keyValues = [String : Any]()
         
-        // #EXTINF:<duration>,[<title>]
+        // #EXTINF
         // TODO: regex for EXTINF
         if tag == "EXTINF" {
             let items = text.components(separatedBy: ",")
@@ -125,6 +146,16 @@ class M3U8Parser {
             
             if items.count == 2, let last = items.last, last.isEmpty == false, last.contains("=") == false {
                 keyValues["title"] = self.value(text: last)
+            }
+        }
+        else if tag == "EXT-X-BYTERANGE" {
+            let items = text.components(separatedBy: "@")
+            if let first = items.first {
+                keyValues["length"] = self.value(text: first)
+            }
+            
+            if items.count == 2, let last = items.last, last.isEmpty == false, last.contains("=") == false {
+                keyValues["start"] = self.value(text: last)
             }
         }
         
@@ -139,12 +170,6 @@ class M3U8Parser {
             let key = key(text: String(text[keyRange]))
             let value = String(text[valueRange]).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
             keyValues[key] = self.value(text: value)
-        }
-        
-        // TODO: file path regex
-        // Next line
-        if let line = nextLine, line.isEmpty == false, line.hasPrefix("#") == false {
-            keyValues["uri"] = line
         }
         
         return keyValues.count > 0

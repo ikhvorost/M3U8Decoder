@@ -10,106 +10,8 @@ extension Error {
     }
 }
 
-// #EXT-X-SESSION-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",KEYFORMATVERSIONS="1",URI="skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3"
-public struct EXT_X_SESSION_KEY: Decodable {
-    let method: String
-    let keyformat: String
-    let keyformatversions: Int
-    let uri: String
-}
-
-// #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac_2_192_cdn_1",NAME="English",LANGUAGE="en",CHANNELS="2",AUTOSELECT=YES,DEFAULT=YES,URI="sample/audio_7_02_3_fairplay.m3u8"
-public struct EXT_X_MEDIA: Decodable {
-    let type: String
-    let group_id: String
-    let name: String
-    let language: String
-    let autoselect: Bool?
-    let `default`: Bool?
-    let instream_id: String?
-    let channels: Int?
-    let uri: String?
-}
-
-// #EXT-X-STREAM-INF:BANDWIDTH=3679027,AVERAGE-BANDWIDTH=3063808,RESOLUTION=1280x720,FRAME-RATE=23.976,CODECS="avc1.640028,mp4a.40.2",CLOSED-CAPTIONS="cc",AUDIO="aac_2_192_cdn_1"
-public struct EXT_X_STREAM_INF: Decodable {
-    let bandwidth: Int
-    let average_bandwidth: Int
-    let resolution: String
-    let frame_rate: Double
-    let codecs: String
-    let closed_captions: String
-    let audio: String
-    let subtitles: String?
-    let uri: String?
-}
-
-// #EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=95828,RESOLUTION=512x288,CODECS="avc1.4d401f",URI="iframe_00.m3u8"
-public struct EXT_X_I_FRAME_STREAM_INF: Decodable {
-    let bandwidth: Int
-    let average_bandwidth: Int?
-    let resolution: String
-    let codecs: String
-    let uri: String
-}
-
-public struct MasterPlaylist: Decodable {
-    let extm3u: Bool
-    let ext_x_version: Int
-    let ext_x_independent_segments: Bool
-    let ext_x_session_key: EXT_X_SESSION_KEY?
-    let ext_x_media: [EXT_X_MEDIA]
-    let ext_x_stream_inf: [EXT_X_STREAM_INF]
-    let ext_x_i_frame_stream_inf: EXT_X_I_FRAME_STREAM_INF //[EXT_X_I_FRAME_STREAM_INF]
-}
-
-public struct MasterPlaylistCamelCase: Decodable {
-    let extm3u: Bool
-    let extXVersion: Int
-    let extXIndependentSegments: Bool
-}
-
-public struct MasterPlaylistCustomKey: Decodable {
-    let m3u: Bool
-    let version: Int
-    let independent_segments: Bool
-}
-
-// #EXT-X-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",KEYFORMATVERSIONS="1",URI="skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3"
-public struct EXT_X_KEY: Decodable {
-    let method: String
-    let keyformat: String
-    let keyformatversions: Int
-    let uri: String
-}
-
-// #EXT-X-MAP:URI="main.mp4",BYTERANGE="1118@0"
-public struct EXT_X_MAP: Decodable {
-    let uri: String
-    let byterange: String
-}
-
-// #EXTINF:<duration>,[<title>]
-// TODO: duration and title
-public struct EXTINF: Decodable {
-    let uri: String
-}
-
-public struct VideoPlaylist: Decodable {
-    let extm3u: Bool
-    let ext_x_version: Int
-    let ext_x_targetduration: Int
-    let ext_x_media_sequence: Int?
-    let ext_x_playlist_type: String
-    let ext_x_independent_segments: Bool?
-    let ext_x_map: EXT_X_MAP?
-    let ext_x_key: EXT_X_KEY?
-    //let extinf: [EXTINF]
-    let ext_x_endlist: Bool
-}
-
 // https://datatracker.ietf.org/doc/html/draft-pantos-http-live-streaming-23#section-8
-final class M3U8_PlaylistExamples: XCTestCase {
+final class M3U8_RFC_Examples: XCTestCase {
     
     // #EXT-X-KEY:METHOD=AES-128,URI="https://priv.example.com/key.php?r=52"
     struct EXT_X_KEY: Decodable {
@@ -292,7 +194,230 @@ final class M3U8_PlaylistExamples: XCTestCase {
     }
 }
 
-final class M3U8Tests: XCTestCase {
+// https://datatracker.ietf.org/doc/html/draft-pantos-http-live-streaming-23#section-8
+final class M3U8_All: XCTestCase {
+    
+    // #EXT-X-MAP:<attribute-list> - URI, BYTERANGE
+    struct EXT_X_MAP: Decodable {
+        let uri: String
+        let byterange: String // <n>[@<o>]
+    }
+    
+    // #EXT-X-KEY:<attribute-list> - METHOD, URI, IV, KEYFORMAT, KEYFORMATVERSIONS
+    struct EXT_X_KEY: Decodable {
+        let method: String
+        let keyformat: String
+        let keyformatversions: Int
+        let uri: String
+        let iv: String
+    }
+    
+    struct EXT_X_DATERANGE: Decodable {
+        let id: String
+        let `class`: String
+        let start_date: Date
+        let end_date: Date
+        let duration: Double
+        let planned_duration: Double
+        let x_com_example_ad_id: String
+        let scte35_out: String // SCTE35-CMD, SCTE35-OUT, SCTE35-IN
+        let end_on_next: Bool
+    }
+    
+    // #EXTINF:<duration>,[<title>]
+    struct EXTINF: Decodable {
+        let duration: Double
+        let title: String?
+    }
+    
+    // #EXT-X-BYTERANGE:<n>[@<o>]
+    struct EXT_X_BYTERANGE: Decodable {
+        let length: Int
+        let start: Int?
+    }
+    
+    struct Playlist: Decodable {
+        let extm3u: Bool
+        let ext_x_version: Int // #EXT-X-VERSION:<n>
+        let ext_x_key: EXT_X_KEY
+        let ext_x_map: EXT_X_MAP
+        let ext_x_program_date_time: Date // YYYY-MM-DDThh:mm:ss.SSSZ
+        let ext_x_daterange: EXT_X_DATERANGE
+        let extinf: [EXTINF]
+        let uri: [String]
+        let ext_x_byterange: [EXT_X_BYTERANGE]
+        let ext_x_discontinuity: Bool
+    }
+    
+    let playlistText = """
+    #EXTM3U
+    #EXT-X-VERSION:7
+    
+    #EXT-X-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",KEYFORMATVERSIONS="1",URI="skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3",IV=0X99b74007b6254e4bd1c6e03631cad15b
+    #EXT-X-MAP:URI="main.mp4",BYTERANGE="1118@0"
+    
+    #EXT-X-PROGRAM-DATE-TIME:2010-02-19T14:54:23.031+08:00
+    #EXT-X-DATERANGE:ID="splice-6FFFFFF0",CLASS="com.xyz.dai.adbreak",START-DATE="2014-03-05T11:15:00Z",END-DATE="2014-03-05T11:15:00Z",DURATION=59.993,PLANNED-DURATION=59.993,X-COM-EXAMPLE-AD-ID="XYZ123",SCTE35-OUT=0xFC002F0000000000FF000014056FFFFFF000E011622DCAFF000052636200000000000A0008029896F50000008700000000,END-ON-NEXT=YES
+    
+    #EXTINF:13.333,Sample artist - Sample title
+    #EXT-X-BYTERANGE:1700094@1118
+    http://example.com/low.m3u8
+    
+    #EXT-X-DISCONTINUITY
+    
+    #EXTINF:8.00000,
+    #EXT-X-BYTERANGE:1777588@3490693
+    main.mp4
+    """
+    
+    func test_playlist() {
+        do {
+            let playlist = try M3U8Decoder().decode(Playlist.self, text: playlistText)
+            print(playlist)
+            
+            XCTAssert(playlist.extm3u)
+            XCTAssert(playlist.ext_x_version == 7)
+            
+            XCTAssert(playlist.ext_x_key.method == "SAMPLE-AES")
+            XCTAssert(playlist.ext_x_key.keyformat == "com.apple.streamingkeydelivery")
+            XCTAssert(playlist.ext_x_key.keyformatversions == 1)
+            XCTAssert(playlist.ext_x_key.uri == "skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3")
+            XCTAssert(playlist.ext_x_key.iv == "0X99b74007b6254e4bd1c6e03631cad15b")
+            
+            XCTAssert(playlist.ext_x_map.uri == "main.mp4")
+            XCTAssert(playlist.ext_x_map.byterange == "1118@0")
+            
+            XCTAssert(playlist.ext_x_program_date_time.description == "2010-02-19 06:54:23 +0000")
+            
+            XCTAssert(playlist.ext_x_daterange.id == "splice-6FFFFFF0")
+            XCTAssert(playlist.ext_x_daterange.class == "com.xyz.dai.adbreak")
+            XCTAssert(playlist.ext_x_daterange.start_date.description == "2014-03-05 11:15:00 +0000")
+            XCTAssert(playlist.ext_x_daterange.end_date.description == "2014-03-05 11:15:00 +0000")
+            XCTAssert(playlist.ext_x_daterange.duration == 59.993)
+            XCTAssert(playlist.ext_x_daterange.planned_duration == 59.993)
+            XCTAssert(playlist.ext_x_daterange.x_com_example_ad_id == "XYZ123")
+            XCTAssert(playlist.ext_x_daterange.scte35_out == "0xFC002F0000000000FF000014056FFFFFF000E011622DCAFF000052636200000000000A0008029896F50000008700000000")
+            XCTAssert(playlist.ext_x_daterange.end_on_next)
+            
+            XCTAssert(playlist.extinf.count == 2)
+            XCTAssert(playlist.extinf[0].duration == 13.333)
+            XCTAssert(playlist.extinf[0].title == "Sample artist - Sample title")
+            
+            XCTAssert(playlist.ext_x_byterange.count == 2)
+            XCTAssert(playlist.ext_x_byterange[0].length == 1700094)
+            XCTAssert(playlist.ext_x_byterange[0].start == 1118)
+            
+            XCTAssert(playlist.uri.count == 2)
+            XCTAssert(playlist.uri[0] == "http://example.com/low.m3u8")
+            
+            XCTAssert(playlist.ext_x_discontinuity)
+            
+        }
+        catch {
+            XCTFail(error.description)
+        }
+    }
+}
+
+final class M3U8Tests_General: XCTestCase {
+    
+    // #EXT-X-SESSION-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",KEYFORMATVERSIONS="1",URI="skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3"
+    public struct EXT_X_SESSION_KEY: Decodable {
+        let method: String
+        let keyformat: String
+        let keyformatversions: Int
+        let uri: String
+    }
+
+    // #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac_2_192_cdn_1",NAME="English",LANGUAGE="en",CHANNELS="2",AUTOSELECT=YES,DEFAULT=YES,URI="sample/audio_7_02_3_fairplay.m3u8"
+    public struct EXT_X_MEDIA: Decodable {
+        let type: String
+        let group_id: String
+        let name: String
+        let language: String
+        let autoselect: Bool?
+        let `default`: Bool?
+        let instream_id: String?
+        let channels: Int?
+        let uri: String?
+    }
+
+    // #EXT-X-STREAM-INF:BANDWIDTH=3679027,AVERAGE-BANDWIDTH=3063808,RESOLUTION=1280x720,FRAME-RATE=23.976,CODECS="avc1.640028,mp4a.40.2",CLOSED-CAPTIONS="cc",AUDIO="aac_2_192_cdn_1"
+    public struct EXT_X_STREAM_INF: Decodable {
+        let bandwidth: Int
+        let average_bandwidth: Int
+        let resolution: String
+        let frame_rate: Double
+        let codecs: String
+        let closed_captions: String
+        let audio: String
+        let subtitles: String?
+        let uri: String?
+    }
+
+    // #EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=95828,RESOLUTION=512x288,CODECS="avc1.4d401f",URI="iframe_00.m3u8"
+    public struct EXT_X_I_FRAME_STREAM_INF: Decodable {
+        let bandwidth: Int
+        let average_bandwidth: Int?
+        let resolution: String
+        let codecs: String
+        let uri: String
+    }
+
+    public struct MasterPlaylist: Decodable {
+        let extm3u: Bool
+        let ext_x_version: Int
+        let ext_x_independent_segments: Bool
+        let ext_x_session_key: EXT_X_SESSION_KEY?
+        let ext_x_media: [EXT_X_MEDIA]
+        let ext_x_stream_inf: [EXT_X_STREAM_INF]
+        let ext_x_i_frame_stream_inf: EXT_X_I_FRAME_STREAM_INF //[EXT_X_I_FRAME_STREAM_INF]
+    }
+
+    public struct MasterPlaylistCamelCase: Decodable {
+        let extm3u: Bool
+        let extXVersion: Int
+        let extXIndependentSegments: Bool
+    }
+
+    public struct MasterPlaylistCustomKey: Decodable {
+        let m3u: Bool
+        let version: Int
+        let independent_segments: Bool
+    }
+
+    // #EXT-X-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",KEYFORMATVERSIONS="1",URI="skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3"
+    public struct EXT_X_KEY: Decodable {
+        let method: String
+        let keyformat: String
+        let keyformatversions: Int
+        let uri: String
+    }
+
+    // #EXT-X-MAP:URI="main.mp4",BYTERANGE="1118@0"
+    public struct EXT_X_MAP: Decodable {
+        let uri: String
+        let byterange: String
+    }
+
+    // #EXTINF:<duration>,[<title>]
+    // TODO: duration and title
+    public struct EXTINF: Decodable {
+        let uri: String
+    }
+
+    public struct VideoPlaylist: Decodable {
+        let extm3u: Bool
+        let ext_x_version: Int
+        let ext_x_targetduration: Int
+        let ext_x_media_sequence: Int?
+        let ext_x_playlist_type: String
+        let ext_x_independent_segments: Bool?
+        let ext_x_map: EXT_X_MAP?
+        let ext_x_key: EXT_X_KEY?
+        //let extinf: [EXTINF]
+        let ext_x_endlist: Bool
+    }
     
     static let masterPlaylistUrl = Bundle.module.url(forResource: "master_7_3_fairplay", withExtension: "m3u8")!
 
