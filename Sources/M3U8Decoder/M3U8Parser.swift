@@ -35,7 +35,7 @@ class M3U8Parser {
     private static let boolValues = ["YES", "NO"]
     
     private static let uriKey = "uri"
-    private static let arrayTags = ["EXTINF", "EXT-X-BYTERANGE"]
+    private static let arrayTags = ["EXTINF", "EXT-X-BYTERANGE", "EXT-X-MEDIA", "EXT-X-STREAM-INF", "EXT-X-I-FRAME-STREAM-INF"]
     
     var autoDetectValueType = true
     var keyDecodingStrategy: M3U8Decoder.KeyDecodingStrategy = .snakeCase
@@ -56,7 +56,7 @@ class M3U8Parser {
             }
             
             // URI
-            guard line.hasPrefix("#") else {
+            guard line.hasPrefix("#EXT") else {
                 if var items = dict[Self.uriKey] as? [Any] {
                     items.append(line)
                     dict[Self.uriKey] = items
