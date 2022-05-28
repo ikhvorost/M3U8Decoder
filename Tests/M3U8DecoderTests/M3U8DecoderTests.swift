@@ -1,5 +1,5 @@
 import XCTest
-
+import Combine
 import M3U8Decoder
 //@testable import M3U8Decoder
 
@@ -592,7 +592,6 @@ final class M3U8Tests_URL: XCTestCase {
         waitForExpectations(timeout: 1)
     }
     
-    @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
     func test_master_async() {
         let expectation = self.expectation(description: #function)
         
@@ -606,6 +605,26 @@ final class M3U8Tests_URL: XCTestCase {
                 XCTFail(error.description)
             }
         }
+        
+        waitForExpectations(timeout: 1)
+    }
+    
+    var cancellable: Cancellable?
+    
+    // https://developer.apple.com/documentation/foundation/urlsession/processing_url_session_data_task_results_with_combine
+    func test_master_combine() {
+        let expectation = self.expectation(description: #function)
+        
+        cancellable = URLSession.shared.dataTaskPublisher(for: Self.url)
+            .map(\.data)
+            .decode(type: MasterPlaylist.self, decoder: M3U8Decoder())
+            .sink (
+                receiveCompletion: { print($0) },
+                receiveValue: { playlist in
+                    self.testMasterPlaylist(playlist)
+                    expectation.fulfill()
+                }
+            )
         
         waitForExpectations(timeout: 1)
     }

@@ -24,6 +24,7 @@
 
 import Foundation
 
+
 fileprivate extension DateFormatter {
     static let iso8601withFractionalSeconds: DateFormatter = {
         let formatter = DateFormatter()
@@ -106,6 +107,11 @@ public class M3U8Decoder {
                 return
             }
             
+            guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
+                completion(nil, URLError(.badServerResponse))
+                return
+            }
+            
             guard let data = data, data.isEmpty == false else {
                 completion(nil, "No data.")
                 return
@@ -140,6 +146,15 @@ public class M3U8Decoder {
             }
         }
     }
-    
-    // TODO: Combine
 }
+
+#if canImport(Combine)
+
+import protocol Combine.TopLevelDecoder
+
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
+extension M3U8Decoder: TopLevelDecoder {
+    public typealias Input = Data
+}
+
+#endif
