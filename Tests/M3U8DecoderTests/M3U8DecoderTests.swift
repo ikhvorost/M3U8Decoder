@@ -164,7 +164,7 @@ final class M3U8_All_Tags: XCTestCase {
     
     func test_playlist() {
         do {
-            let playlist = try M3U8Decoder().decode(Playlist.self, text: playlistText)
+            let playlist = try M3U8Decoder().decode(Playlist.self, from: playlistText)
             print(playlist)
             
             // Basic Tags
@@ -253,7 +253,7 @@ final class M3U8_All_Tags: XCTestCase {
     
     func test_master() {
         do {
-            let playlist = try M3U8Decoder().decode(MaterPlaylist.self, text: masterPlaylistText)
+            let playlist = try M3U8Decoder().decode(MaterPlaylist.self, from: masterPlaylistText)
             print(playlist)
             
             XCTAssert(playlist.extm3u)
@@ -365,7 +365,7 @@ final class M3U8Tests_File: XCTestCase {
 
     func test_master() {
         do {
-            let playlist = try M3U8Decoder().decode(MasterPlaylist.self, url: Self.masterPlaylistUrl)
+            let playlist = try M3U8Decoder().decode(MasterPlaylist.self, from: Self.masterPlaylistUrl)
             print(playlist)
             
             XCTAssert(playlist.extm3u)
@@ -445,7 +445,7 @@ final class M3U8Tests_File: XCTestCase {
         do {
             let decoder = M3U8Decoder()
             decoder.keyDecodingStrategy = .camelCase
-            let playlist = try decoder.decode(MasterPlaylistCamelCase.self, url: Self.masterPlaylistUrl)
+            let playlist = try decoder.decode(MasterPlaylistCamelCase.self, from: Self.masterPlaylistUrl)
             print(playlist)
         }
         catch {
@@ -463,7 +463,7 @@ final class M3U8Tests_File: XCTestCase {
                     .replacingOccurrences(of: "-x-", with: "")
                     .replacingOccurrences(of: "-", with: "_")
             }
-            let playlist = try decoder.decode(MasterPlaylistCustomKey.self, url: Self.masterPlaylistUrl)
+            let playlist = try decoder.decode(MasterPlaylistCustomKey.self, from: Self.masterPlaylistUrl)
             print(playlist)
         }
         catch {
@@ -473,7 +473,7 @@ final class M3U8Tests_File: XCTestCase {
 
     func test_playlist() {
         do {
-            let playlist = try M3U8Decoder().decode(VideoPlaylist.self, url: Self.videoPlaylistUrl)
+            let playlist = try M3U8Decoder().decode(VideoPlaylist.self, from: Self.videoPlaylistUrl)
             print(playlist)
             
             XCTAssert(playlist.extm3u)
@@ -573,7 +573,7 @@ final class M3U8Tests_URL: XCTestCase {
     func test_master_completion() {
         let expectation = self.expectation(description: #function)
         
-        M3U8Decoder().decode(MasterPlaylist.self, url: Self.url) { playlist, error in
+        M3U8Decoder().decode(MasterPlaylist.self, from: Self.url) { playlist, error in
             guard error == nil else {
                 XCTFail(error!.description)
                 return
@@ -597,10 +597,14 @@ final class M3U8Tests_URL: XCTestCase {
         let expectation = self.expectation(description: #function)
         
         Task {
-            let playlist = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.url)
-            self.testMasterPlaylist(playlist)
-            
-            expectation.fulfill()
+            do {
+                let playlist = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.url)
+                self.testMasterPlaylist(playlist)
+                expectation.fulfill()
+            }
+            catch {
+                XCTFail(error.description)
+            }
         }
         
         waitForExpectations(timeout: 1)

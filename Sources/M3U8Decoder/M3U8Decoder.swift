@@ -63,7 +63,7 @@ public class M3U8Decoder {
     public init() {
     }
     
-    public func decode<T>(_ type: T.Type, text: String) throws -> T where T : Decodable {
+    public func decode<T>(_ type: T.Type, from text: String) throws -> T where T : Decodable {
         let parser = M3U8Parser()
         parser.keyDecodingStrategy = keyDecodingStrategy
         guard let dict = parser.parse(text: text) else {
@@ -90,15 +90,15 @@ public class M3U8Decoder {
         guard let text = String(data: data, encoding: .utf8) else {
             throw "Bad data."
         }
-        return try decode(type, text: text)
+        return try decode(type, from: text)
     }
     
-    public func decode<T>(_ type: T.Type, url: URL) throws -> T where T : Decodable {
+    public func decode<T>(_ type: T.Type, from url: URL) throws -> T where T : Decodable {
         let data = try Data(contentsOf: url)
         return try decode(type, from: data)
     }
     
-    public func decode<T>(_ type: T.Type, url: URL, _ completion: @escaping (T?, Error?) -> Void) where T : Decodable {
+    public func decode<T>(_ type: T.Type, from url: URL, _ completion: @escaping (T?, Error?) -> Void) where T : Decodable {
         let request = URLRequest(url: url)
         URLSession.shared.dataTask(with: request) { data, response, error in
             guard error == nil else {
@@ -123,9 +123,9 @@ public class M3U8Decoder {
     }
     
     @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
-    public func decode<T>(_ type: T.Type, from: URL) async throws -> T where T : Decodable {
+    public func decode<T>(_ type: T.Type, from url: URL) async throws -> T where T : Decodable {
         try await withCheckedThrowingContinuation { continuation in
-            decode(type, url: from) { playlist, error in
+            decode(type, from: url) { playlist, error in
                 guard error == nil else {
                     continuation.resume(throwing: error!)
                     return
