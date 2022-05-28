@@ -35,7 +35,10 @@ class M3U8Parser {
     private static let boolValues = ["YES", "NO"]
     
     private static let uriKey = "uri"
-    private static let arrayTags = ["EXTINF", "EXT-X-BYTERANGE", "EXT-X-MEDIA", "EXT-X-STREAM-INF", "EXT-X-I-FRAME-STREAM-INF"]
+    private static let arrayTags = [
+        "EXTINF", "EXT-X-BYTERANGE", // Playlist
+        "EXT-X-MEDIA", "EXT-X-STREAM-INF", "EXT-X-I-FRAME-STREAM-INF" // Master playlist
+    ]
     
     var autoDetectValueType = true
     var keyDecodingStrategy: M3U8Decoder.KeyDecodingStrategy = .snakeCase

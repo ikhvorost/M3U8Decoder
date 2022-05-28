@@ -50,8 +50,6 @@ let package = Package(
             resources: [
                 .copy("Resources/master_7_3_fairplay.m3u8"),
                 .copy("Resources/video_7_02_3_fairplay.m3u8"),
-                .copy("Resources/master.m3u8"),
-                .copy("Resources/prog_index.m3u8")
             ]
         ),
     ],

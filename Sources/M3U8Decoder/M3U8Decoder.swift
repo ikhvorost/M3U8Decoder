@@ -112,7 +112,8 @@ public class M3U8Decoder {
             }
             
             do {
-                completion(try self.decode(type, from: data), nil)
+                let playlist = try self.decode(type, from: data)
+                completion(playlist, nil)
             }
             catch {
                 completion(nil, error)
@@ -121,6 +122,24 @@ public class M3U8Decoder {
         .resume()
     }
     
-    // TODO: async
+    @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
+    public func decode<T>(_ type: T.Type, from: URL) async throws -> T where T : Decodable {
+        try await withCheckedThrowingContinuation { continuation in
+            decode(type, url: from) { playlist, error in
+                guard error == nil else {
+                    continuation.resume(throwing: error!)
+                    return
+                }
+                
+                guard let playlist = playlist else {
+                    continuation.resume(throwing: "No playlist")
+                    return
+                }
+                
+                continuation.resume(returning: playlist)
+            }
+        }
+    }
+    
     // TODO: Combine
 }
