@@ -10,6 +10,14 @@ extension Error {
     }
 }
 
+extension XCTestCase {
+    func wait(_f: String = #function, _ body: (XCTestExpectation) -> Void)  {
+        let expectation = expectation(description: #function)
+        body(expectation)
+        waitForExpectations(timeout: 1)
+    }
+}
+
 // Media Playlist Tags
 
 // #EXT-X-MAP:<attribute-list> - URI, BYTERANGE
@@ -571,72 +579,122 @@ final class M3U8Tests_URL: XCTestCase {
     }
     
     func test_master_completion() {
-        let expectation = self.expectation(description: #function)
-        
-        M3U8Decoder().decode(MasterPlaylist.self, from: Self.url) { playlist, error in
-            guard error == nil else {
-                XCTFail(error!.description)
-                return
+        wait { expectation in
+            M3U8Decoder().decode(MasterPlaylist.self, from: Self.url) { playlist, error in
+                guard error == nil else {
+                    XCTFail(error!.description)
+                    return
+                }
+                
+                guard let playlist = playlist else {
+                    XCTFail("No playlist")
+                    return
+                }
+                
+                self.testMasterPlaylist(playlist)
+                
+                expectation.fulfill()
             }
-            
-            guard let playlist = playlist else {
-                XCTFail("No playlist")
-                return
-            }
-
-            self.testMasterPlaylist(playlist)
-            
-            expectation.fulfill()
         }
-        
-        waitForExpectations(timeout: 1)
     }
     
     func test_master_async() {
-        let expectation = self.expectation(description: #function)
-        
-        Task {
-            do {
-                let playlist = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.url)
-                self.testMasterPlaylist(playlist)
-                expectation.fulfill()
-            }
-            catch {
-                XCTFail(error.description)
+        wait { expectation in
+            Task {
+                do {
+                    let playlist = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.url)
+                    self.testMasterPlaylist(playlist)
+                    expectation.fulfill()
+                }
+                catch {
+                    XCTFail(error.description)
+                }
             }
         }
-        
-        waitForExpectations(timeout: 1)
     }
     
     var cancellable: Cancellable?
     
     // https://developer.apple.com/documentation/foundation/urlsession/processing_url_session_data_task_results_with_combine
     func test_master_combine() {
-        let expectation = self.expectation(description: #function)
-        
-        cancellable = URLSession.shared.dataTaskPublisher(for: Self.url)
-            .map(\.data)
-            .decode(type: MasterPlaylist.self, decoder: M3U8Decoder())
-            .sink (
-                receiveCompletion: { print($0) },
-                receiveValue: { playlist in
-                    self.testMasterPlaylist(playlist)
-                    expectation.fulfill()
-                }
-            )
-        
-        waitForExpectations(timeout: 1)
+        wait { expectation in
+            cancellable = URLSession.shared.dataTaskPublisher(for: Self.url)
+                .map(\.data)
+                .decode(type: MasterPlaylist.self, decoder: M3U8Decoder())
+                .sink (
+                    receiveCompletion: { print($0) },
+                    receiveValue: { playlist in
+                        self.testMasterPlaylist(playlist)
+                        expectation.fulfill()
+                    }
+                )
+        }
     }
     
-//    func test_video_url() {
-//        do {
-//            let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/v5/prog_index.m3u8")!
-//            let playlist = try M3U8Decoder().decode(VideoPlaylist.self, url: url)
-//            print(playlist)
-//        }
-//        catch {
-//            XCTFail(error.description)
-//        }
-//    }
+    struct VideoPlaylist: Decodable {
+        let extm3u: Bool
+        let ext_x_targetduration: Int
+        let ext_x_version: Int
+        let ext_x_media_sequence: Int
+        let ext_x_playlist_type: String
+        let ext_x_independent_segments: Bool
+        let ext_x_map: EXT_X_MAP
+        let extinf: [EXTINF]
+        let ext_x_byterange: [EXT_X_BYTERANGE]
+        let uri: [String]
+        let ext_x_endlist: Bool
+
+        var mediaSegments: [(EXTINF, String)] {
+            Array(zip(extinf, uri))
+        }
+    }
+    
+    func test_video_variant() {
+        wait { expectation in
+            Task {
+                do {
+                    let masterPlaylist = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.url)
+                    
+                    guard let uri = masterPlaylist.uri.first else {
+                        throw  "No video variant"
+                    }
+                    
+                    let url = Self.url.deletingLastPathComponent().appendingPathComponent(uri)
+                    let videoPlaylist = try await M3U8Decoder().decode(VideoPlaylist.self, from: url)
+                    
+                    XCTAssert(videoPlaylist.extm3u)
+                    XCTAssert(videoPlaylist.ext_x_version == 7)
+                    
+                    XCTAssert(videoPlaylist.extm3u)
+                    XCTAssert(videoPlaylist.ext_x_targetduration == 6)
+                    XCTAssert(videoPlaylist.ext_x_version == 7)
+                    XCTAssert(videoPlaylist.ext_x_media_sequence == 1)
+                    XCTAssert(videoPlaylist.ext_x_playlist_type == "VOD")
+                    XCTAssert(videoPlaylist.ext_x_independent_segments)
+                    
+                    XCTAssert(videoPlaylist.ext_x_map.uri == "main.mp4")
+                    XCTAssert(videoPlaylist.ext_x_map.byterange == "719@0")
+                    
+                    XCTAssert(videoPlaylist.extinf.count == 100)
+                    XCTAssert(videoPlaylist.extinf[0].duration == 6.00000)
+                    
+                    XCTAssert(videoPlaylist.ext_x_byterange.count == 100)
+                    XCTAssert(videoPlaylist.ext_x_byterange[0].length == 1508000)
+                    XCTAssert(videoPlaylist.ext_x_byterange[0].start == 719)
+                    
+                    XCTAssert(videoPlaylist.uri.count == 100)
+                    XCTAssert(videoPlaylist.uri[0] == "main.mp4")
+                    
+                    XCTAssert(videoPlaylist.mediaSegments.count == 100)
+                    
+                    XCTAssert(videoPlaylist.ext_x_endlist)
+                    
+                    expectation.fulfill()
+                }
+                catch {
+                    XCTFail(error.description)
+                }
+            }
+        }
+    }
 }
