@@ -644,8 +644,13 @@ final class M3U8Tests_URL: XCTestCase {
         let uri: [String]
         let ext_x_endlist: Bool
 
-        var mediaSegments: [(EXTINF, String)] {
-            Array(zip(extinf, uri))
+        typealias MediaSegment = (inf: EXTINF, byterange: EXT_X_BYTERANGE, uri: String)
+        var mediaSegments: [MediaSegment] {
+            var items = [MediaSegment]()
+            for (inf, (byterange, uri)) in zip(extinf, zip(ext_x_byterange, uri)) {
+                items.append((inf, byterange, uri))
+            }
+            return items
         }
     }
     
@@ -686,6 +691,9 @@ final class M3U8Tests_URL: XCTestCase {
                     XCTAssert(videoPlaylist.uri[0] == "main.mp4")
                     
                     XCTAssert(videoPlaylist.mediaSegments.count == 100)
+                    XCTAssert(videoPlaylist.mediaSegments[0].inf.duration == 6.00000)
+                    XCTAssert(videoPlaylist.mediaSegments[0].byterange.length == 1508000)
+                    XCTAssert(videoPlaylist.mediaSegments[0].uri == "main.mp4")
                     
                     XCTAssert(videoPlaylist.ext_x_endlist)
                     
