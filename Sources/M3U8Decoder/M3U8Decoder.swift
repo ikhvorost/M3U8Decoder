@@ -53,7 +53,6 @@ fileprivate extension JSONDecoder.DateDecodingStrategy {
 public class M3U8Decoder {
     
     public enum KeyDecodingStrategy {
-        //case original?
         case snakeCase
         case camelCase
         case custom((_ key: String) -> String)
@@ -61,8 +60,7 @@ public class M3U8Decoder {
     
     public var keyDecodingStrategy: KeyDecodingStrategy = .snakeCase
     
-    public init() {
-    }
+    public init() {}
     
     public func decode<T>(_ type: T.Type, from text: String) throws -> T where T : Decodable {
         let parser = M3U8Parser()
@@ -71,14 +69,8 @@ public class M3U8Decoder {
             throw "Bad data."
         }
         
-        // Debug
-        //print(dict)
-        
-        // Decoder
         let decoder = JSONDecoder()
-        
         decoder.dateDecodingStrategy = .customISO8601
-        
         if case .camelCase = keyDecodingStrategy {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
         }

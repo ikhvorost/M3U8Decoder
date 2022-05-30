@@ -29,8 +29,11 @@ extension String : LocalizedError {
 }
 
 class M3U8Parser {
-    private static let regexTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
-    private static let regexAttr = try! NSRegularExpression(pattern: "([^=,]+)=((\"([^\"]+)\")|([^,]+))")
+    private static let regexExtTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
+    private static let regexAttributes = try! NSRegularExpression(pattern: "([^=,]+)=((\"([^\"]+)\")|([^,]+))")
+    private static let regexExtInf = try! NSRegularExpression(pattern: "^([^,]+),(.*)$")
+    private static let regexByterange = try! NSRegularExpression(pattern: "^(\\d+)@?(\\d*)$")
+    private static let regexResolution = try! NSRegularExpression(pattern: "^(\\d+)x(\\d+)$")
     
     private static let boolValues = ["YES", "NO"]
     
@@ -40,7 +43,6 @@ class M3U8Parser {
         "EXT-X-MEDIA", "EXT-X-STREAM-INF", "EXT-X-I-FRAME-STREAM-INF" // Master playlist
     ]
     
-    var autoDetectValueType = true
     var keyDecodingStrategy: M3U8Decoder.KeyDecodingStrategy = .snakeCase
     
     func parse(text: String) -> [String : Any]? {
@@ -54,6 +56,7 @@ class M3U8Parser {
         for i in 0..<items.count {
             let line = items[i]
             
+            // Empty line
             guard line.isEmpty == false else {
                 continue
             }
@@ -70,14 +73,17 @@ class M3U8Parser {
                 continue
             }
             
+            // Tags #EXT
             let range = NSRange(location: 0, length: line.utf16.count)
-            Self.regexTag.matches(in: line, options: [], range: range).forEach {
-                if let tagRange = Range($0.range(at: 1), in: text), let attrRange = Range($0.range(at: 2), in: line) {
+            Self.regexExtTag.matches(in: line, options: [], range: range).forEach {
+                if let tagRange = Range($0.range(at: 1), in: text), let attributesRange = Range($0.range(at: 2), in: line) {
                     let tag = String(line[tagRange])
-                    let attr = String(line[attrRange])
+                    let attributes = String(line[attributesRange])
                     
                     let key = key(text: tag)
-                    let value = parseAttributes(tag: tag, text: attr)
+                    let value = attributes.isEmpty
+                        ? true
+                        : parseAttributes(tag: tag, attributes: attributes)
                     
                     if let item = dict[key] {
                         if var items = item as? [Any] {
@@ -114,69 +120,112 @@ class M3U8Parser {
         }
     }
     
-    // TODO: regex for types
-    private func value(text: String) -> Any {
-        guard autoDetectValueType  else {
+    private func convert(text: String) -> Any {
+        guard text.count < 10  else {
             return text
         }
         
-        if text.count < 10 {
-            if let number = Double(text) {
-                return number
-            }
-            else if Self.boolValues.contains(text) {
-                return text == "YES"
-            }
+        if let number = Double(text) {
+            return number
+        }
+        else if Self.boolValues.contains(text) {
+            return text == "YES"
         }
         
         return text
     }
     
-    private func parseAttributes(tag: String, text: String) -> Any {
-        guard text.isEmpty == false else {
-            return true
-        }
+    private func parseAttribute(name: String, value: String) -> [String : Any]? {
+        var dict = [String : Any]()
+        let range = NSRange(location: 0, length: value.utf16.count)
         
-        var keyValues = [String : Any]()
-        
-        // #EXTINF
-        // TODO: regex for EXTINF
-        if tag == "EXTINF" {
-            let items = text.components(separatedBy: ",")
-            if let first = items.first {
-                keyValues["duration"] = self.value(text: first)
+        switch name {
+        // #EXTINF:<duration>,[<title>]
+        // https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.1
+        case "EXTINF":
+            if let match = Self.regexExtInf.matches(in: value, options: [], range: range).first,
+               match.numberOfRanges == 3,
+               let durationRange = Range(match.range(at: 1), in: value),
+               let titleRange = Range(match.range(at: 2), in: value)
+            {
+                let duration = String(value[durationRange])
+                dict["duration"] = self.convert(text: duration)
+                
+                let title = String(value[titleRange])
+                if title.isEmpty == false {
+                    dict["title"] = title
+                }
             }
             
-            if items.count == 2, let last = items.last, last.isEmpty == false, last.contains("=") == false {
-                keyValues["title"] = self.value(text: last)
-            }
-        }
-        else if tag == "EXT-X-BYTERANGE" {
-            let items = text.components(separatedBy: "@")
-            if let first = items.first {
-                keyValues["length"] = self.value(text: first)
-            }
-            
-            if items.count == 2, let last = items.last, last.isEmpty == false, last.contains("=") == false {
-                keyValues["start"] = self.value(text: last)
-            }
-        }
-        
-        let range = NSRange(location: 0, length: text.utf16.count)
-        Self.regexAttr.matches(in: text, options: [], range: range).forEach {
-            guard let keyRange = Range($0.range(at: 1), in: text),
-                  let valueRange = Range($0.range(at: 2), in: text)
-            else {
-                return
+        // #EXT-X-BYTERANGE:<n>[@<o>]
+        // https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.2
+        case "EXT-X-BYTERANGE":
+            fallthrough
+        case "BYTERANGE":
+            if let match = Self.regexByterange.matches(in: value, options: [], range: range).first,
+               match.numberOfRanges == 3,
+               let lengthRange = Range(match.range(at: 1), in: value),
+               let startRange = Range(match.range(at: 2), in: value)
+            {
+                let length = String(value[lengthRange])
+                dict["length"] = self.convert(text: length)
+                
+                let start = String(value[startRange])
+                if start.isEmpty == false {
+                    dict["start"] = self.convert(text:start)
+                }
             }
             
-            let key = key(text: String(text[keyRange]))
-            let value = String(text[valueRange]).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-            keyValues[key] = self.value(text: value)
+        case "RESOLUTION":
+            let matches = Self.regexResolution.matches(in: value, options: [], range: range)
+            if let match = matches.first, match.numberOfRanges == 3,
+               let widthRange = Range(match.range(at: 1), in: value),
+               let heightRange = Range(match.range(at: 2), in: value)
+            {
+                let width = String(value[widthRange])
+                dict["width"] = self.convert(text: width)
+                
+                let height = String(value[heightRange])
+                dict["height"] = self.convert(text:height)
+            }
+            
+        default:
+            return nil
         }
-        
-        return keyValues.count > 0
-            ? keyValues
-            : value(text: text)
+        return dict.count > 0 ? dict : nil
+    }
+    
+    private func parseAttributes(tag: String, attributes: String) -> Any {
+        if let keyValues = parseAttribute(name: tag, value: attributes) {
+            return keyValues
+        }
+        else {
+            var keyValues = [String : Any]()
+            let range = NSRange(location: 0, length: attributes.utf16.count)
+            Self.regexAttributes.matches(in: attributes, options: [], range: range).forEach {
+                guard $0.numberOfRanges >= 3,
+                      let keyRange = Range($0.range(at: 1), in: attributes),
+                      let valueRange = Range($0.range(at: 2), in: attributes)
+                else {
+                    return
+                }
+                
+                let name = String(attributes[keyRange])
+                let key = key(text: name)
+                let value = String(attributes[valueRange])
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                
+                if let dict = parseAttribute(name: name, value: value) {
+                    keyValues[key] = dict
+                }
+                else {
+                    keyValues[key] = self.convert(text: value)
+                }
+            }
+            
+            return keyValues.count > 0
+                ? keyValues
+                : convert(text: attributes)
+        }
     }
 }

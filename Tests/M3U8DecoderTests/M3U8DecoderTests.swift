@@ -23,7 +23,7 @@ extension XCTestCase {
 // #EXT-X-MAP:<attribute-list> - URI, BYTERANGE
 struct EXT_X_MAP: Decodable {
     let uri: String
-    let byterange: String // <n>[@<o>]
+    let byterange: EXT_X_BYTERANGE
 }
 
 // #EXT-X-KEY:<attribute-list> - METHOD, URI, IV, KEYFORMAT, KEYFORMATVERSIONS
@@ -95,10 +95,15 @@ struct EXT_X_MEDIA: Decodable {
     let characteristics: String?
 }
 
+struct RESOLUTION: Decodable {
+    let width: Int
+    let height: Int
+}
+
 struct EXT_X_I_FRAME_STREAM_INF: Decodable {
     let bandwidth: Int
     let average_bandwidth: Int?
-    let resolution: String
+    let resolution: RESOLUTION
     let codecs: String
     let uri: String
 }
@@ -107,7 +112,7 @@ struct EXT_X_STREAM_INF: Decodable {
     let bandwidth: Int
     let average_bandwidth: Int
     let codecs: String
-    let resolution: String
+    let resolution: RESOLUTION
     let frame_rate: Double
     let hdcp_level: String?
     let audio: String?
@@ -198,7 +203,8 @@ final class M3U8_All_Tags: XCTestCase {
             XCTAssert(playlist.ext_x_key.iv == "0X99b74007b6254e4bd1c6e03631cad15b")
             
             XCTAssert(playlist.ext_x_map.uri == "main.mp4")
-            XCTAssert(playlist.ext_x_map.byterange == "1118@0")
+            XCTAssert(playlist.ext_x_map.byterange.length == 1118)
+            XCTAssert(playlist.ext_x_map.byterange.start == 0)
             
             XCTAssert(playlist.ext_x_program_date_time.description == "2010-02-19 06:54:23 +0000")
             
@@ -297,7 +303,8 @@ final class M3U8_All_Tags: XCTestCase {
             XCTAssert(playlist.ext_x_i_frame_stream_inf.count == 1)
             XCTAssert(playlist.ext_x_i_frame_stream_inf[0].bandwidth == 1015727)
             XCTAssert(playlist.ext_x_i_frame_stream_inf[0].average_bandwidth == 928091)
-            XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution == "1920x1080")
+            XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution.width == 1920)
+            XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution.height == 1080)
             XCTAssert(playlist.ext_x_i_frame_stream_inf[0].codecs == "avc1.640028")
             XCTAssert(playlist.ext_x_i_frame_stream_inf[0].uri == "tp5/iframe_index.m3u8")
             
@@ -305,7 +312,8 @@ final class M3U8_All_Tags: XCTestCase {
             XCTAssert(playlist.ext_x_stream_inf[0].bandwidth == 3679027)
             XCTAssert(playlist.ext_x_stream_inf[0].average_bandwidth == 3063808)
             XCTAssert(playlist.ext_x_stream_inf[0].codecs == "avc1.640028,mp4a.40.2")
-            XCTAssert(playlist.ext_x_stream_inf[0].resolution == "1280x720")
+            XCTAssert(playlist.ext_x_stream_inf[0].resolution.width == 1280)
+            XCTAssert(playlist.ext_x_stream_inf[0].resolution.height == 720)
             XCTAssert(playlist.ext_x_stream_inf[0].frame_rate == 23.976)
             XCTAssert(playlist.ext_x_stream_inf[0].hdcp_level == "TYPE-0")
             XCTAssert(playlist.ext_x_stream_inf[0].audio == "aac_2_192_cdn_1")
@@ -412,7 +420,8 @@ final class M3U8Tests_File: XCTestCase {
             XCTAssert(playlist.ext_x_stream_inf.count == 18)
             XCTAssert(playlist.ext_x_stream_inf[0].bandwidth == 3679027)
             XCTAssert(playlist.ext_x_stream_inf[0].average_bandwidth == 3063808)
-            XCTAssert(playlist.ext_x_stream_inf[0].resolution == "1280x720")
+            XCTAssert(playlist.ext_x_stream_inf[0].resolution.width == 1280)
+            XCTAssert(playlist.ext_x_stream_inf[0].resolution.height == 720)
             XCTAssert(playlist.ext_x_stream_inf[0].frame_rate == 23.976)
             XCTAssert(playlist.ext_x_stream_inf[0].codecs == "avc1.640028,mp4a.40.2")
             XCTAssert(playlist.ext_x_stream_inf[0].closed_captions == "cc")
@@ -420,7 +429,8 @@ final class M3U8Tests_File: XCTestCase {
             
             XCTAssert(playlist.ext_x_stream_inf[2].bandwidth == 8225587)
             XCTAssert(playlist.ext_x_stream_inf[2].average_bandwidth == 6852608)
-            XCTAssert(playlist.ext_x_stream_inf[2].resolution == "1920x1080")
+            XCTAssert(playlist.ext_x_stream_inf[2].resolution.width == 1920)
+            XCTAssert(playlist.ext_x_stream_inf[2].resolution.height == 1080)
             XCTAssert(playlist.ext_x_stream_inf[2].frame_rate == 23.976)
             XCTAssert(playlist.ext_x_stream_inf[2].codecs == "avc1.640028,mp4a.40.2")
             XCTAssert(playlist.ext_x_stream_inf[2].closed_captions == "cc")
@@ -440,7 +450,8 @@ final class M3U8Tests_File: XCTestCase {
             XCTAssert(playlist.ext_x_i_frame_stream_inf.count == 1)
             XCTAssert(playlist.ext_x_i_frame_stream_inf[0].bandwidth == 95828)
             XCTAssert(playlist.ext_x_i_frame_stream_inf[0].average_bandwidth == nil)
-            XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution == "512x288")
+            XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution.width == 512)
+            XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution.height == 288)
             XCTAssert(playlist.ext_x_i_frame_stream_inf[0].codecs == "avc1.4d401f")
             XCTAssert(playlist.ext_x_i_frame_stream_inf[0].uri == "iframe_00.m3u8")
         }
@@ -557,7 +568,8 @@ final class M3U8Tests_URL: XCTestCase {
         XCTAssert(playlist.ext_x_i_frame_stream_inf[2].average_bandwidth == 97767)
         XCTAssert(playlist.ext_x_i_frame_stream_inf[2].bandwidth == 101378)
         XCTAssert(playlist.ext_x_i_frame_stream_inf[2].codecs == "avc1.640020")
-        XCTAssert(playlist.ext_x_i_frame_stream_inf[2].resolution == "960x540")
+        XCTAssert(playlist.ext_x_i_frame_stream_inf[2].resolution.width == 960)
+        XCTAssert(playlist.ext_x_i_frame_stream_inf[2].resolution.height == 540)
         XCTAssert(playlist.ext_x_i_frame_stream_inf[2].uri == "v5/iframe_index.m3u8")
         
         // #EXT-X-STREAM-INF
@@ -565,7 +577,8 @@ final class M3U8Tests_URL: XCTestCase {
         XCTAssert(playlist.ext_x_stream_inf[2].average_bandwidth == 6170000)
         XCTAssert(playlist.ext_x_stream_inf[2].bandwidth == 6312875)
         XCTAssert(playlist.ext_x_stream_inf[2].codecs == "avc1.64002a,mp4a.40.2")
-        XCTAssert(playlist.ext_x_stream_inf[2].resolution == "1920x1080")
+        XCTAssert(playlist.ext_x_stream_inf[2].resolution.width == 1920)
+        XCTAssert(playlist.ext_x_stream_inf[2].resolution.height == 1080)
         XCTAssert(playlist.ext_x_stream_inf[2].frame_rate == 60.000)
         XCTAssert(playlist.ext_x_stream_inf[2].closed_captions == "cc1")
         XCTAssert(playlist.ext_x_stream_inf[2].audio == "aud1")
@@ -678,7 +691,8 @@ final class M3U8Tests_URL: XCTestCase {
                     XCTAssert(videoPlaylist.ext_x_independent_segments)
                     
                     XCTAssert(videoPlaylist.ext_x_map.uri == "main.mp4")
-                    XCTAssert(videoPlaylist.ext_x_map.byterange == "719@0")
+                    XCTAssert(videoPlaylist.ext_x_map.byterange.length == 719)
+                    XCTAssert(videoPlaylist.ext_x_map.byterange.start == 0)
                     
                     XCTAssert(videoPlaylist.extinf.count == 100)
                     XCTAssert(videoPlaylist.extinf[0].duration == 6.00000)
