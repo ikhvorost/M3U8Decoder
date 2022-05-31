@@ -24,10 +24,6 @@
 
 import Foundation
 
-extension String : LocalizedError {
-    public var errorDescription: String? { return self }
-}
-
 class M3U8Parser {
     private static let regexExtTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
     private static let regexAttributes = try! NSRegularExpression(pattern: "([^=,]+)=((\"([^\"]+)\")|([^,]+))")
@@ -120,7 +116,7 @@ class M3U8Parser {
         }
     }
     
-    private func convert(text: String) -> Any {
+    private func convertType(text: String) -> Any {
         guard text.count < 10  else {
             return text
         }
@@ -135,7 +131,7 @@ class M3U8Parser {
         return text
     }
     
-    private func parseAttribute(name: String, value: String) -> [String : Any]? {
+    private func parseName(name: String, value: String) -> [String : Any]? {
         var dict = [String : Any]()
         let range = NSRange(location: 0, length: value.utf16.count)
         
@@ -149,7 +145,7 @@ class M3U8Parser {
                let titleRange = Range(match.range(at: 2), in: value)
             {
                 let duration = String(value[durationRange])
-                dict["duration"] = self.convert(text: duration)
+                dict["duration"] = self.convertType(text: duration)
                 
                 let title = String(value[titleRange])
                 if title.isEmpty == false {
@@ -168,11 +164,11 @@ class M3U8Parser {
                let startRange = Range(match.range(at: 2), in: value)
             {
                 let length = String(value[lengthRange])
-                dict["length"] = self.convert(text: length)
+                dict["length"] = self.convertType(text: length)
                 
                 let start = String(value[startRange])
                 if start.isEmpty == false {
-                    dict["start"] = self.convert(text:start)
+                    dict["start"] = self.convertType(text:start)
                 }
             }
             
@@ -183,10 +179,10 @@ class M3U8Parser {
                let heightRange = Range(match.range(at: 2), in: value)
             {
                 let width = String(value[widthRange])
-                dict["width"] = self.convert(text: width)
+                dict["width"] = self.convertType(text: width)
                 
                 let height = String(value[heightRange])
-                dict["height"] = self.convert(text:height)
+                dict["height"] = self.convertType(text:height)
             }
             
         default:
@@ -196,7 +192,7 @@ class M3U8Parser {
     }
     
     private func parseAttributes(tag: String, attributes: String) -> Any {
-        if let keyValues = parseAttribute(name: tag, value: attributes) {
+        if let keyValues = parseName(name: tag, value: attributes) {
             return keyValues
         }
         else {
@@ -215,17 +211,17 @@ class M3U8Parser {
                 let value = String(attributes[valueRange])
                     .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
                 
-                if let dict = parseAttribute(name: name, value: value) {
+                if let dict = parseName(name: name, value: value) {
                     keyValues[key] = dict
                 }
                 else {
-                    keyValues[key] = self.convert(text: value)
+                    keyValues[key] = self.convertType(text: value)
                 }
             }
             
             return keyValues.count > 0
                 ? keyValues
-                : convert(text: attributes)
+                : convertType(text: attributes)
         }
     }
 }

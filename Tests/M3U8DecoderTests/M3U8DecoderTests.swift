@@ -18,107 +18,34 @@ extension XCTestCase {
     }
 }
 
-// Media Playlist Tags
-
-// #EXT-X-MAP:<attribute-list> - URI, BYTERANGE
-struct EXT_X_MAP: Decodable {
-    let uri: String
-    let byterange: EXT_X_BYTERANGE
+final class M3U8__Review: XCTestCase {
+struct Playlist: Decodable {
+    let extm3u: Bool
+    let ext_x_version: Int
+    let ext_x_targetduration: Int
+    let ext_x_media_sequence: Int
+    let extinf: [EXTINF]
+    let uri: [String]
 }
 
-// #EXT-X-KEY:<attribute-list> - METHOD, URI, IV, KEYFORMAT, KEYFORMATVERSIONS
-struct EXT_X_KEY: Decodable {
-    let method: String
-    let keyformat: String
-    let keyformatversions: Int
-    let uri: String
-    let iv: String?
+func test_review() throws {
+let m3u8 = """
+#EXTM3U
+#EXT-X-VERSION:7
+#EXT-X-TARGETDURATION:10
+#EXT-X-MEDIA-SEQUENCE:2680
+
+#EXTINF:13.333,Sample artist - Sample title
+http://example.com/low.m3u8
+"""
+
+let playlist = try M3U8Decoder().decode(Playlist.self, from: m3u8)
+print(playlist.ext_x_version) // Prints "7"
+print(playlist.ext_x_targetduration) // Prints "10"
+print(playlist.extinf[0].duration) // Prints "13.33"
+print(playlist.extinf[0].title!) // Prints ""Sample artist - Sample title""
+print(playlist.uri[0]) // Prints "http://example.com/low.m3u8"
 }
-
-struct EXT_X_DATERANGE: Decodable {
-    let id: String
-    let `class`: String
-    let start_date: Date
-    let end_date: Date
-    let duration: Double
-    let planned_duration: Double
-    let x_com_example_ad_id: String
-    let scte35_out: String // SCTE35-CMD, SCTE35-OUT, SCTE35-IN
-    let end_on_next: Bool
-}
-
-// #EXTINF:<duration>,[<title>]
-struct EXTINF: Decodable {
-    let duration: Double
-    let title: String?
-}
-
-// #EXT-X-BYTERANGE:<n>[@<o>]
-struct EXT_X_BYTERANGE: Decodable {
-    let length: Int
-    let start: Int?
-}
-
-// Master Playlist Tags
-
-struct EXT_X_SESSION_DATA: Decodable {
-    let data_id: String
-    let value: String
-    let uri: String
-    let language: String
-}
-
-struct EXT_X_SESSION_KEY: Decodable {
-    let method: String
-    let keyformat: String
-    let keyformatversions: Int
-    let uri: String
-}
-
-struct EXT_X_START: Decodable {
-    let time_offset: Int
-    let precise: Bool
-}
-
-struct EXT_X_MEDIA: Decodable {
-    let type: String
-    let group_id: String
-    let name: String
-    let language: String
-    let assoc_language: String?
-    let autoselect: Bool?
-    let `default`: Bool?
-    let instream_id: String?
-    let channels: Int?
-    let forced: Bool?
-    let uri: String?
-    let characteristics: String?
-}
-
-struct RESOLUTION: Decodable {
-    let width: Int
-    let height: Int
-}
-
-struct EXT_X_I_FRAME_STREAM_INF: Decodable {
-    let bandwidth: Int
-    let average_bandwidth: Int?
-    let resolution: RESOLUTION
-    let codecs: String
-    let uri: String
-}
-
-struct EXT_X_STREAM_INF: Decodable {
-    let bandwidth: Int
-    let average_bandwidth: Int
-    let codecs: String
-    let resolution: RESOLUTION
-    let frame_rate: Double
-    let hdcp_level: String?
-    let audio: String?
-    let video: String?
-    let subtitles: String?
-    let closed_captions: String
 }
 
 

@@ -24,6 +24,10 @@
 
 import Foundation
 
+extension String : LocalizedError {
+    /// A localized message describing what error occurred.
+    public var errorDescription: String? { return self }
+}
 
 fileprivate extension DateFormatter {
     static let iso8601withFractionalSeconds: DateFormatter = {
@@ -50,18 +54,84 @@ fileprivate extension JSONDecoder.DateDecodingStrategy {
     }
 }
 
+/// An object that decodes instances of a data and string types from Media Playlist text
+/// format (https://datatracker.ietf.org/doc/html/rfc8216).
+///
+/// The example below shows how to decode an instance of a simple Playlist type
+/// from a text of Media Playlist format.
+///
+///     struct EXTINF: Decodable {
+///         let duration: Double
+///         let title: String?
+///     }
+///
+///     struct Playlist: Decodable {
+///         let extm3u: Bool
+///         let ext_x_version: Int
+///         let ext_x_targetduration: Int
+///         let ext_x_media_sequence: Int
+///         let extinf: [EXTINF]
+///         let uri: [String]
+///     }
+///
+///     let m3u8 = """
+///     #EXTM3U
+///     #EXT-X-VERSION:7
+///     #EXT-X-TARGETDURATION:10
+///     #EXT-X-MEDIA-SEQUENCE:2680
+///
+///     #EXTINF:13.333,Sample artist - Sample title
+///     http://example.com/low.m3u8
+///     """
+///
+///     let playlist = try M3U8Decoder().decode(Playlist.self, from: m3u8)
+///     print(playlist.ext_x_version) // Prints "7"
+///     print(playlist.ext_x_targetduration) // Prints "10"
+///     print(playlist.extinf[0].duration) // Prints "13.33"
+///     print(playlist.extinf[0].title!) // Prints "Sample artist - Sample title"
+///     print(playlist.uri[0]) // Prints "http://example.com/low.m3u8"
+///
 public class M3U8Decoder {
     
+    /// The strategy to use for automatically changing the value of keys before decoding.
     public enum KeyDecodingStrategy {
+        /// Converting playlist tag and attribute names to snake case.
+        ///
+        /// 1. Converting names to lower case.
+        /// 2. Replaces all `-` with `_`.
+        ///
+        /// For example: `#EXT-X-TARGETDURATION` becomes `ext_x_targetduration`.
         case snakeCase
+        
+        /// Converting playlist tag and attribute names to camel case.
+        ///
+        /// 1. Converting names to lower case.
+        /// 2. Capitalizes the word starting after each `-`
+        /// 3. Removes all `-`.
+        ///
+        /// For example: `#EXT-X-TARGETDURATION` becomes `extXTargetduration`.
         case camelCase
+        
+        /// Provide a custom conversion from tag or attribute name in the playlist
+        /// to the keys specified by the provided function.
         case custom((_ key: String) -> String)
     }
     
+    /// The strategy to use for decoding tag and attribute names. Defaults to `.snakeCase`.
     public var keyDecodingStrategy: KeyDecodingStrategy = .snakeCase
     
+    /// Creates a new, reusable Media Playlist decoder with the default formatting settings and decoding strategies.
     public init() {}
     
+    /// Returns a value of the type you specify, decoded from Media Playlist text.
+    ///
+    /// If the text isn’t valid Media Playlist or fails to decode this method throws the corresponding error.
+    ///
+    /// - Parameters:
+    ///    - type: The type of the value to decode.
+    ///    - text: The text to decode from.
+    /// - Returns: A value of the requested type.
+    /// - Throws: An error if any value throws an error during decoding.
     public func decode<T>(_ type: T.Type, from text: String) throws -> T where T : Decodable {
         let parser = M3U8Parser()
         parser.keyDecodingStrategy = keyDecodingStrategy
@@ -79,6 +149,15 @@ public class M3U8Decoder {
         return try decoder.decode(type, from: jsonData)
     }
     
+    /// Returns a value of the type you specify, decoded from Media Playlist data.
+    ///
+    /// If the data isn’t valid Media Playlist or fails to decode this method throws the corresponding error.
+    ///
+    /// - Parameters:
+    ///    - type: The type of the value to decode.
+    ///    - data: The data to decode from.
+    /// - Returns: A value of the requested type.
+    /// - Throws: An error if any value throws an error during decoding.
     public func decode<T>(_ type: T.Type, from data: Data) throws -> T where T : Decodable {
         guard let text = String(data: data, encoding: .utf8) else {
             throw "Bad data."
@@ -86,11 +165,29 @@ public class M3U8Decoder {
         return try decode(type, from: text)
     }
     
+    /// Returns a value of the type you specify, decoded from Media Playlist URL.
+    ///
+    /// If the data from the URL isn’t valid Media Playlist or fails to decode this method throws the corresponding error.
+    ///
+    /// - Parameters:
+    ///    - type: The type of the value to decode.
+    ///    - url: The URL to decode from.
+    /// - Returns: A value of the requested type.
+    /// - Throws: An error if any value throws an error during decoding.
     public func decode<T>(_ type: T.Type, from url: URL) throws -> T where T : Decodable {
         let data = try Data(contentsOf: url)
         return try decode(type, from: data)
     }
     
+    /// Creates a task that decodes the contents of a Media Playlist URL, and calls a handler upon completion.
+    ///
+    /// If the contents from the URL isn’t valid Media Playlist or fails to decode
+    /// a corresponding error will be provided to the completion handler.
+    ///
+    /// - Parameters:
+    ///    - type: The type of the value to decode.
+    ///    - url: The URL to decode from.
+    ///    - completion: The completion handler to call when the decoding is complete.
     public func decode<T>(_ type: T.Type, from url: URL, _ completion: @escaping (T?, Error?) -> Void) where T : Decodable {
         let request = URLRequest(url: url)
         URLSession.shared.dataTask(with: request) { data, response, error in
@@ -120,6 +217,14 @@ public class M3U8Decoder {
         .resume()
     }
     
+    /// Delivers a value of the type you specify asynchronously, decoded from contents of a Media Playlist URL.
+    ///
+    /// If the data from the URL isn’t valid Media Playlist or fails to decode this method throws the corresponding error.
+    ///
+    /// - Parameters:
+    ///    - type: The type of the value to decode.
+    ///    - url: The URL to decode from.
+    /// - Returns: A value of the requested type.
     @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
     public func decode<T>(_ type: T.Type, from url: URL) async throws -> T where T : Decodable {
         try await withCheckedThrowingContinuation { continuation in
@@ -146,6 +251,7 @@ import protocol Combine.TopLevelDecoder
 
 @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension M3U8Decoder: TopLevelDecoder {
+    /// The type this decoder accepts.
     public typealias Input = Data
 }
 
