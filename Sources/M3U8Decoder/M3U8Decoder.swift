@@ -60,11 +60,6 @@ fileprivate extension JSONDecoder.DateDecodingStrategy {
 /// The example below shows how to decode an instance of a simple Playlist type
 /// from a text of Media Playlist format.
 ///
-///     struct EXTINF: Decodable {
-///         let duration: Double
-///         let title: String?
-///     }
-///
 ///     struct Playlist: Decodable {
 ///         let extm3u: Bool
 ///         let ext_x_version: Int
@@ -97,7 +92,7 @@ public class M3U8Decoder {
     public enum KeyDecodingStrategy {
         /// Converting playlist tag and attribute names to snake case.
         ///
-        /// 1. Converting names to lower case.
+        /// 1. Converting keys to lower case.
         /// 2. Replaces all `-` with `_`.
         ///
         /// For example: `#EXT-X-TARGETDURATION` becomes `ext_x_targetduration`.
@@ -105,8 +100,8 @@ public class M3U8Decoder {
         
         /// Converting playlist tag and attribute names to camel case.
         ///
-        /// 1. Converting names to lower case.
-        /// 2. Capitalizes the word starting after each `-`
+        /// 1. Converting keys to lower case.
+        /// 2. Capitalises the word starting after each `-`
         /// 3. Removes all `-`.
         ///
         /// For example: `#EXT-X-TARGETDURATION` becomes `extXTargetduration`.
