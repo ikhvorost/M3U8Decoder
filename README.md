@@ -7,6 +7,19 @@
 
 [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/donate/?hosted_button_id=TSPDD3ZAAH24C)
 
+<center>
+
+```
+███╗   ███╗ ██████╗  ██╗   ██╗  █████╗ 
+████╗ ████║ ╚════██╗ ██║   ██║ ██╔══██╗
+██╔████╔██║  █████╔╝ ██║   ██║ ╚█████╔╝
+██║╚██╔╝██║  ╚═══██╗ ██║   ██║ ██╔══██╗
+██║ ╚═╝ ██║ ██████╔╝ ╚██████╔╝ ╚█████╔╝
+╚═╝     ╚═╝ ╚═════╝   ╚═════╝   ╚════╝ 
+DECODER
+```
+</center>
+
 # M3U8Decoder
 
 Decoder for Media Playlist of [HTTP Live Streaming](https://datatracker.ietf.org/doc/html/rfc8216) using `Decodable` protocol.
@@ -128,4 +141,8 @@ let package = Package(
 
 `M3U8Decoder` is available under the MIT license. See the [LICENSE](LICENSE) file for more info.
 
+<center>
+
 [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/donate/?hosted_button_id=TSPDD3ZAAH24C)
+
+</center>
