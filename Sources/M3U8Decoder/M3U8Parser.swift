@@ -28,24 +28,20 @@ class M3U8Parser {
     private static let regexExtTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
     private static let regexAttributes = try! NSRegularExpression(pattern: "([^=,]+)=((\"([^\"]+)\")|([^,]+))")
     private static let regexExtInf = try! NSRegularExpression(pattern: "^([^,]+),(.*)$")
-    private static let regexByterange = try! NSRegularExpression(pattern: "^(\\d+)@?(\\d*)$")
-    private static let regexResolution = try! NSRegularExpression(pattern: "^(\\d+)x(\\d+)$")
+    private static let regexByterange = try! NSRegularExpression(pattern: "(\\d+)@?(\\d*)")
+    private static let regexResolution = try! NSRegularExpression(pattern: "(\\d+)x(\\d+)")
     
     private static let boolValues = ["YES", "NO"]
-    
     private static let uriKey = "uri"
     private static let arrayTags = [
         "EXTINF", "EXT-X-BYTERANGE", // Playlist
         "EXT-X-MEDIA", "EXT-X-STREAM-INF", "EXT-X-I-FRAME-STREAM-INF" // Master playlist
     ]
+    private static let charSetQuotes = CharacterSet(charactersIn: "\"")
     
     var keyDecodingStrategy: M3U8Decoder.KeyDecodingStrategy = .snakeCase
     
     func parse(text: String) -> [String : Any]? {
-        guard text.isEmpty == false else {
-            return nil
-        }
-        
         var dict = [String : Any]()
         
         let items = text.components(separatedBy: .newlines)
@@ -57,8 +53,41 @@ class M3U8Parser {
                 continue
             }
             
+            // #EXT
+            if line.hasPrefix("#EXT") {
+                let range = NSRange(location: 0, length: line.utf16.count)
+                Self.regexExtTag.matches(in: line, options: [], range: range).forEach {
+                    if let tagRange = Range($0.range(at: 1), in: text), let attributesRange = Range($0.range(at: 2), in: line) {
+                        let tag = String(line[tagRange])
+                        let attributes = String(line[attributesRange])
+                        
+                        let key = key(text: tag)
+                        let value = attributes.isEmpty
+                            ? true
+                            : parseAttributes(tag: tag, attributes: attributes)
+                        
+                        if let item = dict[key] {
+                            if var items = item as? [Any] {
+                                items.append(value)
+                                dict[key] = items
+                            }
+                            else {
+                                dict[key] = [item, value]
+                            }
+                        }
+                        else {
+                            if Self.arrayTags.contains(tag) {
+                                dict[key] = [value]
+                            }
+                            else {
+                                dict[key] = value
+                            }
+                        }
+                    }
+                }
+            }
             // URI
-            guard line.hasPrefix("#EXT") else {
+            else if let _ = URL(string: line) {
                 if var items = dict[Self.uriKey] as? [Any] {
                     items.append(line)
                     dict[Self.uriKey] = items
@@ -66,42 +95,9 @@ class M3U8Parser {
                 else {
                     dict[Self.uriKey] = [line]
                 }
-                continue
-            }
-            
-            // Tags #EXT
-            let range = NSRange(location: 0, length: line.utf16.count)
-            Self.regexExtTag.matches(in: line, options: [], range: range).forEach {
-                if let tagRange = Range($0.range(at: 1), in: text), let attributesRange = Range($0.range(at: 2), in: line) {
-                    let tag = String(line[tagRange])
-                    let attributes = String(line[attributesRange])
-                    
-                    let key = key(text: tag)
-                    let value = attributes.isEmpty
-                        ? true
-                        : parseAttributes(tag: tag, attributes: attributes)
-                    
-                    if let item = dict[key] {
-                        if var items = item as? [Any] {
-                            items.append(value)
-                            dict[key] = items
-                        }
-                        else {
-                            dict[key] = [item, value]
-                        }
-                    }
-                    else {
-                        if Self.arrayTags.contains(tag) {
-                            dict[key] = [value]
-                        }
-                        else {
-                            dict[key] = value
-                        }
-                    }
-                }
             }
         }
-        return dict
+        return dict.count > 0 ? dict : nil
     }
     
     private func key(text: String) -> String {
@@ -117,6 +113,10 @@ class M3U8Parser {
     }
     
     private func convertType(text: String) -> Any {
+        guard text.hasPrefix("\"") == false else {
+            return text.trimmingCharacters(in: Self.charSetQuotes)
+        }
+        
         guard text.count < 10  else {
             return text
         }
@@ -137,7 +137,6 @@ class M3U8Parser {
         
         switch name {
         // #EXTINF:<duration>,[<title>]
-        // https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.1
         case "EXTINF":
             if let match = Self.regexExtInf.matches(in: value, options: [], range: range).first,
                match.numberOfRanges == 3,
@@ -154,7 +153,6 @@ class M3U8Parser {
             }
             
         // #EXT-X-BYTERANGE:<n>[@<o>]
-        // https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.2
         case "EXT-X-BYTERANGE":
             fallthrough
         case "BYTERANGE":
@@ -171,7 +169,8 @@ class M3U8Parser {
                     dict["start"] = self.convertType(text:start)
                 }
             }
-            
+        
+        // #RESOLUTION=<width>x<height>
         case "RESOLUTION":
             let matches = Self.regexResolution.matches(in: value, options: [], range: range)
             if let match = matches.first, match.numberOfRanges == 3,
@@ -195,21 +194,17 @@ class M3U8Parser {
         if let keyValues = parseName(name: tag, value: attributes) {
             return keyValues
         }
-        else {
-            var keyValues = [String : Any]()
-            let range = NSRange(location: 0, length: attributes.utf16.count)
-            Self.regexAttributes.matches(in: attributes, options: [], range: range).forEach {
-                guard $0.numberOfRanges >= 3,
-                      let keyRange = Range($0.range(at: 1), in: attributes),
-                      let valueRange = Range($0.range(at: 2), in: attributes)
-                else {
-                    return
-                }
-                
+        
+        var keyValues = [String : Any]()
+        let range = NSRange(location: 0, length: attributes.utf16.count)
+        Self.regexAttributes.matches(in: attributes, options: [], range: range).forEach {
+            if $0.numberOfRanges >= 3 {
+                let keyRange = Range($0.range(at: 1), in: attributes)!
                 let name = String(attributes[keyRange])
                 let key = key(text: name)
+                    
+                let valueRange = Range($0.range(at: 2), in: attributes)!
                 let value = String(attributes[valueRange])
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
                 
                 if let dict = parseName(name: name, value: value) {
                     keyValues[key] = dict
@@ -218,10 +213,10 @@ class M3U8Parser {
                     keyValues[key] = self.convertType(text: value)
                 }
             }
-            
-            return keyValues.count > 0
-                ? keyValues
-                : convertType(text: attributes)
         }
+        
+        return keyValues.count > 0
+            ? keyValues
+            : convertType(text: attributes)
     }
 }

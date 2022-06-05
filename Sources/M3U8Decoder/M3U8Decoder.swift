@@ -130,7 +130,8 @@ public class M3U8Decoder {
     public func decode<T>(_ type: T.Type, from text: String) throws -> T where T : Decodable {
         let parser = M3U8Parser()
         parser.keyDecodingStrategy = keyDecodingStrategy
-        guard let dict = parser.parse(text: text) else {
+        
+        guard text.isEmpty == false, let dict = parser.parse(text: text) else {
             throw "Bad data."
         }
         
@@ -183,30 +184,26 @@ public class M3U8Decoder {
     ///    - type: The type of the value to decode.
     ///    - url: The URL to decode from.
     ///    - completion: The completion handler to call when the decoding is complete.
-    public func decode<T>(_ type: T.Type, from url: URL, _ completion: @escaping (T?, Error?) -> Void) where T : Decodable {
+    public func decode<T>(_ type: T.Type, from url: URL, _ completion: @escaping (Result<T, Error>) -> Void) where T : Decodable {
         let request = URLRequest(url: url)
         URLSession.shared.dataTask(with: request) { data, response, error in
             guard error == nil else {
-                completion(nil, error!)
+                completion(.failure(error!))
                 return
             }
             
             guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
-                completion(nil, URLError(.badServerResponse))
-                return
-            }
-            
-            guard let data = data, data.isEmpty == false else {
-                completion(nil, "No data.")
+                completion(.failure(URLError(.badServerResponse)))
                 return
             }
             
             do {
-                let playlist = try self.decode(type, from: data)
-                completion(playlist, nil)
+                precondition(data != nil)
+                let playlist = try self.decode(type, from: data!)
+                completion(.success(playlist))
             }
             catch {
-                completion(nil, error)
+                completion(.failure(error))
             }
         }
         .resume()
@@ -223,18 +220,13 @@ public class M3U8Decoder {
     @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
     public func decode<T>(_ type: T.Type, from url: URL) async throws -> T where T : Decodable {
         try await withCheckedThrowingContinuation { continuation in
-            decode(type, from: url) { playlist, error in
-                guard error == nil else {
-                    continuation.resume(throwing: error!)
-                    return
+            decode(type, from: url) { result in
+                switch result {
+                case let .success(playlist):
+                    continuation.resume(returning: playlist)
+                case let .failure(error):
+                    continuation.resume(throwing: error)
                 }
-                
-                guard let playlist = playlist else {
-                    continuation.resume(throwing: "No playlist")
-                    return
-                }
-                
-                continuation.resume(returning: playlist)
             }
         }
     }

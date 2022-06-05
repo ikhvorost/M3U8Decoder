@@ -50,7 +50,7 @@ public struct EXT_X_KEY: Decodable {
     /// The value is a quoted-string that specifies how the key is represented in the resource identified by the URI. This attribute is OPTIONAL.
     public let keyformat: String?
     /// The value is a quoted-string containing one or more positive integers separated by the "/" character (for example, "1", "1/2", or "1/2/5"). This attribute is OPTIONAL.
-    public let keyformatversions: Int?
+    public let keyformatversions: String?
     /// The value is a quoted-string containing a URI that specifies how to obtain the key. This attribute is REQUIRED unless the METHOD is NONE.
     public let uri: String
     /// The value is a hexadecimal-sequence that specifies a 128-bit unsigned integer Initialization Vector to be used with the key.
@@ -162,7 +162,7 @@ public struct EXT_X_MEDIA: Decodable {
     /// The value is a quoted-string that specifies a Rendition within the segments in the Media Playlist. This attribute is OPTIONAL.
     public let instream_id: String?
     /// The value is a quoted-string that specifies an ordered, backslash-separated ("/") list of parameters. This attribute is OPTIONAL.
-    public let channels: Int?
+    public let channels: String?
     /// The value is an enumerated-string; valid strings are YES and NO. This attribute is OPTIONAL.
     public let forced: Bool?
     /// The value is a quoted-string containing a URI that identifies the Media Playlist file. This attribute is OPTIONAL.
