@@ -107,7 +107,7 @@ public class M3U8Decoder {
         /// For example: `#EXT-X-TARGETDURATION` becomes `extXTargetduration`.
         case camelCase
         
-        /// Provide a custom conversion from tag or attribute name in the playlist
+        /// Provide a custom conversion from a tag or attribute name in the playlist
         /// to the keys specified by the provided function.
         case custom((_ key: String) -> String)
     }

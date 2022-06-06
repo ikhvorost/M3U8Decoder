@@ -7,8 +7,6 @@
 
 [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/donate/?hosted_button_id=TSPDD3ZAAH24C)
 
-<center>
-
 ```
 ███╗   ███╗ ██████╗  ██╗   ██╗  █████╗ 
 ████╗ ████║ ╚════██╗ ██║   ██║ ██╔══██╗
@@ -16,17 +14,17 @@
 ██║╚██╔╝██║  ╚═══██╗ ██║   ██║ ██╔══██╗
 ██║ ╚═╝ ██║ ██████╔╝ ╚██████╔╝ ╚█████╔╝
 ╚═╝     ╚═╝ ╚═════╝   ╚═════╝   ╚════╝ 
-DECODER
+                DECODER
 ```
-</center>
 
 # M3U8Decoder
 
 Decoder for Media Playlist of [HTTP Live Streaming](https://datatracker.ietf.org/doc/html/rfc8216) using `Decodable` protocol.
 
 - [Overview](#overview)
-- [Custom tags](#customtags)
+- [KeyDecodingStrategy](#keydecodingstrategy)
 - [Predefined types](#predefinedtypes)
+- [Custom tags](#customtags)
 - [Combine](#combine)
 - [Async](#async)
 - [Installation](#installation)
@@ -37,6 +35,8 @@ Decoder for Media Playlist of [HTTP Live Streaming](https://datatracker.ietf.org
 The example below shows how to decode an instance of a simple `Playlist` type from a provided text of Media Playlist. The type adopts `Decodable` so that it’s decodable using a `M3U8Decoder` instance.
 
 ```swift
+import M3U8Decoder
+
 struct Playlist: Decodable {
     let extm3u: Bool
     let ext_x_version: Int
@@ -75,6 +75,8 @@ Where:
 `M3U8Decoder` can also decode from `Data` and `URL` instances both synchonously and asynchronously e.g.:
 
 ```swift
+import M3U8Decoder
+
 struct MasterPlaylist: Decodable {
     let extm3u: Bool
     let ext_x_version: Int
@@ -106,6 +108,104 @@ decoder.decode(MasterPlaylist.self, from: url) { result in
         print(error)
     }
 }
+```
+
+## KeyDecodingStrategy
+
+The strategy to use for automatically changing the value of keys before decoding.
+
+### `snakeCase`
+Converting playlist tag and attribute names to snake case. It's default strategy.
+
+1. Converting keys to lower case.
+2. Replaces all `-` with `_`.
+
+For example: `#EXT-X-TARGETDURATION` becomes `ext_x_targetduration`.
+
+### `camelCase`
+
+Converting playlist tag and attribute names to camel case.
+
+1. Converting keys to lower case.
+2. Capitalises the word starting after each `-`
+3. Removes all `-`.
+
+For example: `#EXT-X-TARGETDURATION` becomes `extXTargetduration`.
+
+```swift
+struct Media: Decodable {
+    let type: String
+    let groupId: String
+    let name: String
+    let language: String?
+    let instreamId: String?
+}
+    
+struct Playlist: Decodable {
+    let extm3u: Bool
+    let extXVersion: Int
+    let extXIndependentSegments: Bool
+    let extXMedia: [Media]
+}
+
+let m3u8 = """
+#EXTM3U
+#EXT-X-VERSION:7
+#EXT-X-INDEPENDENT-SEGMENTS
+#EXT-X-MEDIA:TYPE=CLOSED-CAPTIONS,GROUP-ID="cc",NAME="SERVICE1",LANGUAGE="en",INSTREAM-ID="SERVICE1"
+"""
+    
+let decoder = M3U8Decoder()
+decoder.keyDecodingStrategy = .camelCase
+
+let playlist = try decoder.decode(Playlist.self, from: m3u8)    
+print(playlist.extXVersion) // Prints "7"
+print(playlist.extXIndependentSegments) // Prints "true"
+print(playlist.extXMedia[0].type) // Prints "CLOSED-CAPTIONS"
+print(playlist.extXMedia[0].groupId) // Prints "cc"
+```
+
+### `custom((_ key: String) -> String)`
+
+Provide a custom conversion from a tag or attribute name in the playlist to the keys specified by the provided function.
+
+```swift
+struct Media: Decodable {
+    let type: String
+    let group_id: String
+    let name: String
+    let language: String?
+    let instream_id: String?
+}
+    
+struct Playlist: Decodable {
+    let m3u: Bool
+    let version: Int
+    let independent_segments: Bool
+    let media: [Media]
+}
+
+let m3u8 = """
+#EXTM3U
+#EXT-X-VERSION:7
+#EXT-X-INDEPENDENT-SEGMENTS
+#EXT-X-MEDIA:TYPE=CLOSED-CAPTIONS,GROUP-ID="cc",NAME="SERVICE1",LANGUAGE="en",INSTREAM-ID="SERVICE1"
+"""
+    
+let decoder = M3U8Decoder()
+decoder.keyDecodingStrategy = .custom { key in
+    key
+        .lowercased()
+        .replacingOccurrences(of: "ext", with: "")
+        .replacingOccurrences(of: "-x-", with: "")
+        .replacingOccurrences(of: "-", with: "_")
+}
+    
+let playlist = try decoder.decode(Playlist.self, from: m3u8)
+print(playlist.version) // Prints "7"
+print(playlist.independent_segments) // Prints "true"
+print(playlist.media[0].type) // Prints "CLOSED-CAPTIONS"
+print(playlist.media[0].group_id) // Prints "cc"
 ```
 
 ## Installation
@@ -141,8 +241,4 @@ let package = Package(
 
 `M3U8Decoder` is available under the MIT license. See the [LICENSE](LICENSE) file for more info.
 
-<center>
-
 [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/donate/?hosted_button_id=TSPDD3ZAAH24C)
-
-</center>
