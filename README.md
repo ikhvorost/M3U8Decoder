@@ -26,7 +26,7 @@ Decoder for Media Playlist of [HTTP Live Streaming](https://datatracker.ietf.org
 - [Predefined types](#predefined-types)
 - [Custom tags and attributes](#custom-tags-and-attributes)
 - [Combine](#combine)
-- [Async](#async)
+- [async/await](#asyncawait)
 - [Installation](#installation)
 - [License](#license)
 
@@ -264,6 +264,55 @@ catch {
     print(error.description)
 }
 ```
+
+## Combine
+
+`M3U8Decoder` supporst `TopLevelDecoder` protocol and can be used with Combine framework:
+
+```swift
+struct MasterPlaylist: Decodable {
+    let extm3u: Bool
+    let ext_x_version: Int
+    let ext_x_independent_segments: Bool
+    let ext_x_media: [EXT_X_MEDIA]
+    let ext_x_stream_inf: [EXT_X_STREAM_INF]
+    let ext_x_i_frame_stream_inf: [EXT_X_I_FRAME_STREAM_INF]
+    let uri: [String]
+}
+    
+var cancellable: Cancellable?
+
+let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8")!
+cancellable = URLSession.shared.dataTaskPublisher(for: url)
+    .map(\.data)
+    .decode(type: MasterPlaylist.self, decoder: M3U8Decoder())
+    .sink (
+        receiveCompletion: { print("Received completion: \($0)") },
+        receiveValue: { playlist in
+            print("Version:", playlist.ext_x_version)
+            print("Independent segments:", playlist.ext_x_independent_segments)
+            print("EXT-X-MEDIA[0]:", playlist.ext_x_media[0])
+            print("URI[0]:", playlist.uri[0])
+        }
+    )
+```
+
+Outputs:
+
+```
+Version: 6
+Independent segments: true
+EXT-X-MEDIA[0]: EXT_X_MEDIA(type: "AUDIO", group_id: "aud1", name: "English", language: Optional("en"), assoc_language: nil, autoselect: Optional(true), default: Optional(true), instream_id: nil, channels: Optional("2"), forced: nil, uri: Optional("a1/prog_index.m3u8"), characteristics: nil)
+URI[0]: v5/prog_index.m3u8
+Received completion: finished
+```
+
+> NOTE: Combine is avaliable from macOS 10.15, iOS 13.0, watchOS 6.0 and tvOS 13.0.
+
+
+## async/await
+
+
 
 ## Installation
 
