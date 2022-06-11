@@ -117,31 +117,32 @@ final class M3U8_All: XCTestCase {
     }
     
     func test_custom() {
-        let text = """
-        #EXT-CUSTOM-VALUE:1
-        #EXT-CUSTOM-ATTR:VALUE1=1,VALUE2="Text"
+        let m3u8 = """
+        #EXTM3U
+        #EXT-CUSTOM-TAG1:1
+        #EXT-CUSTOM-TAG2:VALUE1=1,VALUE2="Text"
         #EXT-CUSTOM-ARRAY:1
         #EXT-CUSTOM-ARRAY:2
         #EXT-CUSTOM-ARRAY:3
         """
         
-        struct EXT_CUSTOM_ATTR: Decodable {
+        struct CustomAttributes: Decodable {
             let value1: Int
             let value2: String
         }
         
         struct CustomPlaylist: Decodable {
-            let ext_custom_value: Int
-            let ext_custom_attr: EXT_CUSTOM_ATTR
+            let ext_custom_tag1: Int
+            let ext_custom_tag2: CustomAttributes
             let ext_custom_array: [Int]
         }
         
         do {
-            let playlist = try M3U8Decoder().decode(CustomPlaylist.self, from: text)
+            let playlist = try M3U8Decoder().decode(CustomPlaylist.self, from: m3u8)
             
-            XCTAssert(playlist.ext_custom_value == 1)
-            XCTAssert(playlist.ext_custom_attr.value1 == 1)
-            XCTAssert(playlist.ext_custom_attr.value2 == "Text")
+            XCTAssert(playlist.ext_custom_tag1 == 1)
+            XCTAssert(playlist.ext_custom_tag2.value1 == 1)
+            XCTAssert(playlist.ext_custom_tag2.value2 == "Text")
             XCTAssert(playlist.ext_custom_array.count == 3)
             XCTAssert(playlist.ext_custom_array == [1, 2, 3])
         }

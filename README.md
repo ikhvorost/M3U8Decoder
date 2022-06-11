@@ -7,7 +7,7 @@
 
 [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/donate/?hosted_button_id=TSPDD3ZAAH24C)
 
-```
+```bash
 ███╗   ███╗ ██████╗  ██╗   ██╗  █████╗ 
 ████╗ ████║ ╚════██╗ ██║   ██║ ██╔══██╗
 ██╔████╔██║  █████╔╝ ██║   ██║ ╚█████╔╝
@@ -22,9 +22,9 @@
 Decoder for Media Playlist of [HTTP Live Streaming](https://datatracker.ietf.org/doc/html/rfc8216) using `Decodable` protocol.
 
 - [Overview](#overview)
-- [KeyDecodingStrategy](#keydecodingstrategy)
-- [Predefined types](#predefinedtypes)
-- [Custom tags](#customtags)
+- [Key decoding strategy](#key-decoding-strategy)
+- [Predefined types](#predefined-types)
+- [Custom tags and attributes](#custom-tags-and-attributes)
 - [Combine](#combine)
 - [Async](#async)
 - [Installation](#installation)
@@ -69,7 +69,7 @@ print(playlist.uri[0]) // Prints "http://example.com/low.m3u8"
 ```
 
 Where:
--  `EXTINF` is predefined type for `#EXTINF` playlist tag. (See  [Predefined types](#predefinedtypes))
+-  `EXTINF` is predefined type for `#EXTINF` playlist tag. (See  [Predefined types](#predefined-types))
 - `uri` contains all URI lines that identifies a Media Segments or a Playlist files.
 
 `M3U8Decoder` can also decode from `Data` and `URL` instances both synchonously and asynchronously e.g.:
@@ -110,7 +110,7 @@ decoder.decode(MasterPlaylist.self, from: url) { result in
 }
 ```
 
-## KeyDecodingStrategy
+## Key decoding strategy
 
 The strategy to use for automatically changing the value of keys before decoding.
 
@@ -206,6 +206,63 @@ print(playlist.version) // Prints "7"
 print(playlist.independent_segments) // Prints "true"
 print(playlist.media[0].type) // Prints "CLOSED-CAPTIONS"
 print(playlist.media[0].group_id) // Prints "cc"
+```
+
+## Predefined types
+
+There are a list of predifined sctructs with `snakeCase` key coding strategy for all medata tags and attributes from of [HTTP Live Streaming](https://datatracker.ietf.org/doc/html/rfc8216) document that can be used to decode playlists.
+
+Type | Tag/Attribute | Description
+-- | -- | --
+`EXT_X_MAP` | `#EXT-X-MAP:<attribute-list>` | The EXT-X-MAP tag specifies how to obtain the Media Initialization Section required to parse the applicable Media Segments.
+`EXT_X_KEY` | `#EXT-X-KEY:<attribute-list>` <br> `#EXT_X_SESSION_KEY:<attribute-list>` | Media Segments MAY be encrypted. The EXT-X-KEY/EXT_X_SESSION_KEY tag specifies how to decrypt them.  
+`EXT_X_DATERANGE` | `#EXT-X-DATERANGE:<attribute-list>` | The EXT-X-DATERANGE tag associates a Date Range (i.e., a range o time defined by a starting and ending date) with a set of attribute value pairs.
+`EXTINF` | `#EXTINF:<duration>,[<title>]` |  The EXTINF tag specifies the duration of a Media Segment.
+`EXT_X_BYTERANGE` | `#EXT-X-BYTERANGE:<n>[@<o>]` | The EXT-X-BYTERANGE tag indicates that a Media Segment is a sub-range of the resource identified by its URI.
+`EXT_X_SESSION_DATA` | `#EXT-X-SESSION-DATA:<attribute-list>` | The EXT-X-SESSION-DATA tag allows arbitrary session data to be carried in a Master Playlist.
+`EXT_X_START` | `#EXT-X-START:<attribute-list>` | The EXT-X-START tag indicates a preferred point at which to start playing a Playlist.
+`EXT_X_MEDIA` | `#EXT-X-MEDIA:<attribute-list>` | The EXT-X-MEDIA tag is used to relate Media Playlists that contain alternative Renditions of the same content.
+`EXT_X_STREAM_INF` | `#EXT-X-STREAM-INF:<attribute-list>` | The EXT-X-STREAM-INF tag specifies a Variant Stream, which is a set of Renditions that can be combined to play the presentation.
+`EXT_X_I_FRAME_STREAM_INF` | `#EXT-X-I-FRAME-STREAM-INF:<attribute-list>` | The EXT-X-I-FRAME-STREAM-INF tag identifies a Media Playlist file containing the I-frames of a multimedia presentation.
+`RESOLUTION` | `RESOLUTION=<width>x<height>` | The value is a decimal-resolution describing the optimal pixel resolution at which to display all the video in the Variant Stream.
+
+Implementations of these structs you can look at [M3U8Tags.swift](./sources/M3U8Decoder/M3U8Tags.swift) but anyway you can make and use your own ones to decode your playlists.
+
+## Custom tags and attributes
+
+You can specify your types for custom tags or attributes with any key decodig strategy to decode your non-standard playlists:
+
+```swift
+let m3u8 = """
+#EXTM3U
+#EXT-CUSTOM-TAG1:1
+#EXT-CUSTOM-TAG2:VALUE1=1,VALUE2="Text"
+#EXT-CUSTOM-ARRAY:1
+#EXT-CUSTOM-ARRAY:2
+#EXT-CUSTOM-ARRAY:3
+"""
+
+struct CustomAttributes: Decodable {
+    let value1: Int
+    let value2: String
+}
+
+struct CustomPlaylist: Decodable {
+    let ext_custom_tag1: Int
+    let ext_custom_tag2: CustomAttributes
+    let ext_custom_array: [Int]
+}
+
+do {
+    let playlist = try M3U8Decoder().decode(CustomPlaylist.self, from: m3u8)
+    
+    print(playlist.ext_custom_tag1) // Prints "1"
+    print(playlist.ext_custom_tag2) // Prints "CustomAttributes(value1: 1, value2: 'Text')"
+    print(playlist.ext_custom_array) // Prints "[1, 2, 3]"
+}
+catch {
+    print(error.description)
+}
 ```
 
 ## Installation

@@ -26,7 +26,7 @@ import Foundation
 
 // MARK: - Media Playlist Tags
 
-/// The EXT-X-MAP tag specifies how to obtain the Media Initialization Section (Section 3) required to parse the applicable Media Segments.
+/// The EXT-X-MAP tag specifies how to obtain the Media Initialization Section required to parse the applicable Media Segments.
 ///
 ///     #EXT-X-MAP:<attribute-list>
 ///
@@ -171,18 +171,6 @@ public struct EXT_X_MEDIA: Decodable {
     public let characteristics: String?
 }
 
-/// The value is a decimal-resolution describing the optimal pixel resolution at which to display all the video in the Variant Stream.
-///
-///     RESOLUTION=<width>x<height>
-///
-/// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.4.2
-public struct RESOLUTION: Decodable {
-    /// Width of a video.
-    public let width: Int
-    /// Height of a video.
-    public let height: Int
-}
-
 /// The EXT-X-STREAM-INF tag specifies a Variant Stream, which is a set of Renditions that can be combined to play the presentation.
 ///
 ///     #EXT-X-STREAM-INF:<attribute-list>
@@ -231,4 +219,18 @@ public struct EXT_X_I_FRAME_STREAM_INF: Decodable {
     public let video: String?
     /// The value is a quoted-string containing a URI that identifies the I-frame Media Playlist file. This attribute is REQUIRED.
     public let uri: String
+}
+
+// MARK: - Attributes
+
+/// The value is a decimal-resolution describing the optimal pixel resolution at which to display all the video in the Variant Stream.
+///
+///     RESOLUTION=<width>x<height>
+///
+/// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.4.2
+public struct RESOLUTION: Decodable {
+    /// Width of a video.
+    public let width: Int
+    /// Height of a video.
+    public let height: Int
 }
