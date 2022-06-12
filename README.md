@@ -7,17 +7,11 @@
 
 [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/donate/?hosted_button_id=TSPDD3ZAAH24C)
 
-```bash
-███╗   ███╗ ██████╗  ██╗   ██╗  █████╗ 
-████╗ ████║ ╚════██╗ ██║   ██║ ██╔══██╗
-██╔████╔██║  █████╔╝ ██║   ██║ ╚█████╔╝
-██║╚██╔╝██║  ╚═══██╗ ██║   ██║ ██╔══██╗
-██║ ╚═╝ ██║ ██████╔╝ ╚██████╔╝ ╚█████╔╝
-╚═╝     ╚═╝ ╚═════╝   ╚═════╝   ╚════╝ 
-                DECODER
-```
+<p align="center">
+<img src="m3u8decoder.png" alt="M3U8Decoder: Flexible M3U8 playlist parsing for Swift." width="350">
+</p>
 
-# M3U8Decoder
+# M3U8Decoder 
 
 Decoder for Media Playlist of [HTTP Live Streaming](https://datatracker.ietf.org/doc/html/rfc8216) using `Decodable` protocol.
 
@@ -115,7 +109,8 @@ decoder.decode(MasterPlaylist.self, from: url) { result in
 The strategy to use for automatically changing the value of keys before decoding.
 
 ### `snakeCase`
-Converting playlist tag and attribute names to snake case. It's default strategy.
+
+It's **default** strategy to convert playlist tag and attribute names to snake case.
 
 1. Converting keys to lower case.
 2. Replaces all `-` with `_`.
@@ -193,6 +188,8 @@ let m3u8 = """
 """
     
 let decoder = M3U8Decoder()
+
+// `EXT-X-INDEPENDENT-SEGMENTS` bacomes `independent_segments`
 decoder.keyDecodingStrategy = .custom { key in
     key
         .lowercased()
@@ -210,7 +207,7 @@ print(playlist.media[0].group_id) // Prints "cc"
 
 ## Predefined types
 
-There are a list of predifined sctructs with `snakeCase` key coding strategy for all medata tags and attributes from of [HTTP Live Streaming](https://datatracker.ietf.org/doc/html/rfc8216) document that can be used to decode playlists.
+There are a list of default predifined sctructs (with `snakeCase` key coding strategy) for all medata tags and attributes from of [HTTP Live Streaming](https://datatracker.ietf.org/doc/html/rfc8216) document that can be used to decode playlists.
 
 Type | Tag/Attribute | Description
 -- | -- | --
