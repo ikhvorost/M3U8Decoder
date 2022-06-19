@@ -26,7 +26,7 @@ import Foundation
 
 fileprivate enum ParseResult {
     case object([String : Any])
-    case array([Any])
+    case other(Any)
     case none
 }
 
@@ -201,8 +201,8 @@ class M3U8Parser {
             let array = value
                 .trimmingCharacters(in: Self.charSetQuotes)
                 .components(separatedBy: ",")
-            return .array(array)
-            
+            return .other(array)
+                    
         default:
             return .none
         }
@@ -225,8 +225,8 @@ class M3U8Parser {
             switch parse(name: name, value: value) {
             case let .object(object):
                 keyValues[key] = object
-            case let .array(array):
-                keyValues[key] = array
+            case let .other(item):
+                keyValues[key] = item
             case .none:
                 keyValues[key] = self.convertType(text: value)
             }

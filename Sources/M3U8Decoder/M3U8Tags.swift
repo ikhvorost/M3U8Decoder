@@ -54,7 +54,7 @@ public struct EXT_X_KEY: Decodable {
     /// The value is a quoted-string containing a URI that specifies how to obtain the key. This attribute is REQUIRED unless the METHOD is NONE.
     public let uri: String
     /// The value is a hexadecimal-sequence that specifies a 128-bit unsigned integer Initialization Vector to be used with the key.
-    public let iv: String?
+    public let iv: Data?
 }
 
 /// The EXT-X-DATERANGE tag associates a Date Range (i.e., a range o time defined by a starting and ending date) with a set of attribute value pairs.

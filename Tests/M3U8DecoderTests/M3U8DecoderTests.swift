@@ -241,7 +241,9 @@ final class M3U8_All: XCTestCase {
             XCTAssert(playlist.ext_x_key.keyformat == "com.apple.streamingkeydelivery")
             XCTAssert(playlist.ext_x_key.keyformatversions == "1")
             XCTAssert(playlist.ext_x_key.uri == "skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3")
-            XCTAssert(playlist.ext_x_key.iv == "0X99b74007b6254e4bd1c6e03631cad15b")
+            XCTAssert(playlist.ext_x_key.iv?.count == 16) // 128-bit "0X99b74007b6254e4bd1c6e03631cad15b"
+            XCTAssert(playlist.ext_x_key.iv?[0] == 0x99)
+            XCTAssert(playlist.ext_x_key.iv?[15] == 0x5b)
             
             XCTAssert(playlist.ext_x_map.uri == "main.mp4")
             XCTAssert(playlist.ext_x_map.byterange?.length == 1118)

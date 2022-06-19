@@ -44,13 +44,27 @@ fileprivate extension DateFormatter {
 }
 
 fileprivate extension JSONDecoder.DateDecodingStrategy {
-    static let customISO8601 = custom {
+    static let ISO8601 = custom {
         let container = try $0.singleValueContainer()
         let string = try container.decode(String.self)
         if let date = DateFormatter.iso8601withFractionalSeconds.date(from: string) ?? DateFormatter.iso8601.date(from: string) {
             return date
         }
         throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date: \(string)")
+    }
+}
+
+fileprivate extension JSONDecoder.DataDecodingStrategy {
+    private static let regex = try! NSRegularExpression(pattern: "([0-9a-fA-F]{2})", options: [])
+    
+    static let hex = custom {
+        let container = try $0.singleValueContainer()
+        let string = try container.decode(String.self)
+        let range = NSRange(location: 0, length: string.utf16.count)
+        let bytes = Self.regex.matches(in: string, options: [], range: range)
+            .compactMap { Range($0.range(at: 1), in: string) }
+            .compactMap { UInt8(string[$0], radix: 16) }
+        return Data(bytes)
     }
 }
 
@@ -136,10 +150,17 @@ public class M3U8Decoder {
         }
         
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .customISO8601
+        
+        // Date
+        decoder.dateDecodingStrategy = .ISO8601
+        
+        // Key
         if case .camelCase = keyDecodingStrategy {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
         }
+        
+        // Data
+        decoder.dataDecodingStrategy = .hex
         
         let jsonData = try JSONSerialization.data(withJSONObject: dict)
         return try decoder.decode(type, from: jsonData)
