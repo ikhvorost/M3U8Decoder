@@ -26,8 +26,8 @@ import Foundation
 
 class M3U8Parser {
     private static let regexExtTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
-    private static let regexAttributes = try! NSRegularExpression(pattern: "([^=,]+)=((\"([^\"]+)\")|([^,]+))")
-    private static let regexExtInf = try! NSRegularExpression(pattern: "^([^,]+),(.*)$")
+    private static let regexAttributes = try! NSRegularExpression(pattern: "([^=,\\s]+)=((\"([^\"]+)\")|([^,]+))")
+    private static let regexExtInf = try! NSRegularExpression(pattern: "^([^,]+),?(.*)$")
     private static let regexByterange = try! NSRegularExpression(pattern: "(\\d+)@?(\\d*)")
     private static let regexResolution = try! NSRegularExpression(pattern: "(\\d+)x(\\d+)")
     
@@ -57,14 +57,14 @@ class M3U8Parser {
             if line.hasPrefix("#EXT") {
                 let range = NSRange(location: 0, length: line.utf16.count)
                 Self.regexExtTag.matches(in: line, options: [], range: range).forEach {
-                    if let tagRange = Range($0.range(at: 1), in: text), let attributesRange = Range($0.range(at: 2), in: line) {
+                    if let tagRange = Range($0.range(at: 1), in: text),
+                       let attributesRange = Range($0.range(at: 2), in: line)
+                    {
                         let tag = String(line[tagRange])
                         let attributes = String(line[attributesRange])
                         
                         let key = key(text: tag)
-                        let value = attributes.isEmpty
-                            ? true
-                            : parseAttributes(tag: tag, attributes: attributes)
+                        let value = parse(tag: tag, attributes: attributes)
                         
                         if let item = dict[key] {
                             if var items = item as? [Any] {
@@ -131,8 +131,8 @@ class M3U8Parser {
         return text
     }
     
-    private func parseName(name: String, value: String) -> [String : Any]? {
-        var dict = [String : Any]()
+    private func parse(name: String, value: String) -> [String : Any]? {
+        var keyValues = [String : Any]()
         let range = NSRange(location: 0, length: value.utf16.count)
         
         switch name {
@@ -144,11 +144,11 @@ class M3U8Parser {
                let titleRange = Range(match.range(at: 2), in: value)
             {
                 let duration = String(value[durationRange])
-                dict["duration"] = self.convertType(text: duration)
+                keyValues["duration"] = self.convertType(text: duration)
                 
                 let title = String(value[titleRange])
                 if title.isEmpty == false {
-                    dict["title"] = title
+                    keyValues["title"] = title
                 }
             }
             
@@ -162,11 +162,11 @@ class M3U8Parser {
                let startRange = Range(match.range(at: 2), in: value)
             {
                 let length = String(value[lengthRange])
-                dict["length"] = self.convertType(text: length)
+                keyValues["length"] = self.convertType(text: length)
                 
                 let start = String(value[startRange])
                 if start.isEmpty == false {
-                    dict["start"] = self.convertType(text:start)
+                    keyValues["start"] = self.convertType(text:start)
                 }
             }
         
@@ -178,45 +178,51 @@ class M3U8Parser {
                let heightRange = Range(match.range(at: 2), in: value)
             {
                 let width = String(value[widthRange])
-                dict["width"] = self.convertType(text: width)
+                keyValues["width"] = self.convertType(text: width)
                 
                 let height = String(value[heightRange])
-                dict["height"] = self.convertType(text:height)
+                keyValues["height"] = self.convertType(text:height)
             }
             
         default:
             return nil
         }
-        return dict.count > 0 ? dict : nil
+        return keyValues.count > 0 ? keyValues : nil
     }
     
-    private func parseAttributes(tag: String, attributes: String) -> Any {
-        if let keyValues = parseName(name: tag, value: attributes) {
+    private func parse(attributes: String, keyValues: inout [String : Any]) {
+        let range = NSRange(location: 0, length: attributes.utf16.count)
+        Self.regexAttributes.matches(in: attributes, options: [], range: range).forEach {
+            guard $0.numberOfRanges >= 3 else { return }
+            
+            let keyRange = Range($0.range(at: 1), in: attributes)!
+            let name = String(attributes[keyRange])
+            let key = key(text: name)
+                
+            let valueRange = Range($0.range(at: 2), in: attributes)!
+            let value = String(attributes[valueRange])
+            
+            if let dict = parse(name: name, value: value) {
+                keyValues[key] = dict
+            }
+            else {
+                keyValues[key] = self.convertType(text: value)
+            }
+        }
+    }
+    
+    private func parse(tag: String, attributes: String) -> Any {
+        // Bool tag
+        guard attributes.isEmpty == false else {
+            return true
+        }
+        
+        var keyValues = parse(name: tag, value: attributes) ?? [String : Any]()
+        parse(attributes: attributes, keyValues: &keyValues)
+        guard keyValues.count == 0 else {
             return keyValues
         }
         
-        var keyValues = [String : Any]()
-        let range = NSRange(location: 0, length: attributes.utf16.count)
-        Self.regexAttributes.matches(in: attributes, options: [], range: range).forEach {
-            if $0.numberOfRanges >= 3 {
-                let keyRange = Range($0.range(at: 1), in: attributes)!
-                let name = String(attributes[keyRange])
-                let key = key(text: name)
-                    
-                let valueRange = Range($0.range(at: 2), in: attributes)!
-                let value = String(attributes[valueRange])
-                
-                if let dict = parseName(name: name, value: value) {
-                    keyValues[key] = dict
-                }
-                else {
-                    keyValues[key] = self.convertType(text: value)
-                }
-            }
-        }
-        
-        return keyValues.count > 0
-            ? keyValues
-            : convertType(text: attributes)
+        return convertType(text: attributes)
     }
 }

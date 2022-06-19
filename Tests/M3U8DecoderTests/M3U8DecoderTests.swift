@@ -65,8 +65,11 @@ final class M3U8_All: XCTestCase {
     #EXT-X-DISCONTINUITY
     
     #EXTINF:8.00000,
-    #EXT-X-BYTERANGE:1777588@3490693
+    #EXT-X-BYTERANGE:1777588
     main.mp4
+    
+    #EXTINF:10
+    next.mp4
     
     #EXT-X-ENDLIST
     """
@@ -116,25 +119,70 @@ final class M3U8_All: XCTestCase {
         }
     }
     
+    func test_double_attributes() {
+        struct Playlist: Decodable {
+            let ext_x_map: EXT_X_MAP
+        }
+        
+        let m3u8 = """
+        #EXTM3U
+        #EXT-X-VERSION:7
+        #EXT-X-MAP:URI="main1.mp4",BYTERANGE="1118@0",URI="main2.mp4"
+        """
+        
+        do {
+            let playlist = try M3U8Decoder().decode(Playlist.self, from: m3u8)
+            
+            XCTAssert(playlist.ext_x_map.byterange?.length == 1118)
+            XCTAssert(playlist.ext_x_map.byterange?.start == 0)
+            XCTAssert(playlist.ext_x_map.uri == "main2.mp4")
+        }
+        catch {
+            XCTFail(error.description)
+        }
+    }
+    
     func test_custom() {
         let m3u8 = """
         #EXTM3U
         #EXT-CUSTOM-TAG1:1
-        #EXT-CUSTOM-TAG2:VALUE1=1,VALUE2="Text"
+        #EXT-CUSTOM-TAG2:VALUE1=1,VALUE2="Text",VALUE3=""
         #EXT-CUSTOM-ARRAY:1
         #EXT-CUSTOM-ARRAY:2
         #EXT-CUSTOM-ARRAY:3
+        
+        #EXTINF:10,title="Dark Horse",artist="Katy Perry / Juicy J",song_spot=\"M\" MediaBaseId=\"1971116\" itunesTrackId=\"0\" amgTrackId=\"-1\" amgArtistId=\"0\" TAID=\"35141\" TPID=\"23894643\" cartcutId=\"0729388001\" amgArtworkURL=\"http://assets.iheart.com/images/1080/MI0003667474\" length=\"00:03:32\" unsID=\"-1\"
+        main.mp4
         """
         
         struct CustomAttributes: Decodable {
             let value1: Int
             let value2: String
+            let value3: String
+        }
+        
+        struct CustomExtInf: Decodable {
+            let duration: Double
+            let title: String
+            let artist: String
+            let song_spot: String
+            let mediabaseid: String
+            let itunestrackid: String
+            let amgtrackid: String
+            let amgartistid: String
+            let taid: String
+            let tpid: String
+            let cartcutid: String
+            let amgartworkurl: String
+            let length: String
+            let unsid: String
         }
         
         struct CustomPlaylist: Decodable {
             let ext_custom_tag1: Int
             let ext_custom_tag2: CustomAttributes
             let ext_custom_array: [Int]
+            let extinf: [CustomExtInf]
         }
         
         do {
@@ -143,8 +191,25 @@ final class M3U8_All: XCTestCase {
             XCTAssert(playlist.ext_custom_tag1 == 1)
             XCTAssert(playlist.ext_custom_tag2.value1 == 1)
             XCTAssert(playlist.ext_custom_tag2.value2 == "Text")
+            XCTAssert(playlist.ext_custom_tag2.value3 == "")
             XCTAssert(playlist.ext_custom_array.count == 3)
             XCTAssert(playlist.ext_custom_array == [1, 2, 3])
+            
+            // EXTINF
+            XCTAssert(playlist.extinf[0].duration == 10)
+            XCTAssert(playlist.extinf[0].title == "Dark Horse")
+            XCTAssert(playlist.extinf[0].artist == "Katy Perry / Juicy J")
+            XCTAssert(playlist.extinf[0].song_spot == "M")
+            XCTAssert(playlist.extinf[0].mediabaseid == "1971116")
+            XCTAssert(playlist.extinf[0].itunestrackid == "0")
+            XCTAssert(playlist.extinf[0].amgtrackid == "-1")
+            XCTAssert(playlist.extinf[0].amgartistid == "0")
+            XCTAssert(playlist.extinf[0].taid == "35141")
+            XCTAssert(playlist.extinf[0].tpid == "23894643")
+            XCTAssert(playlist.extinf[0].cartcutid == "0729388001")
+            XCTAssert(playlist.extinf[0].amgartworkurl == "http://assets.iheart.com/images/1080/MI0003667474")
+            XCTAssert(playlist.extinf[0].length == "00:03:32")
+            XCTAssert(playlist.extinf[0].unsid == "-1")
         }
         catch {
             XCTFail(error.description)
@@ -194,15 +259,21 @@ final class M3U8_All: XCTestCase {
             XCTAssert(playlist.ext_x_daterange.scte35_out == "0xFC002F0000000000FF000014056FFFFFF000E011622DCAFF000052636200000000000A0008029896F50000008700000000")
             XCTAssert(playlist.ext_x_daterange.end_on_next == true)
             
-            XCTAssert(playlist.extinf.count == 2)
+            XCTAssert(playlist.extinf.count == 3)
             XCTAssert(playlist.extinf[0].duration == 13.333)
             XCTAssert(playlist.extinf[0].title == "Sample artist - Sample title")
+            XCTAssert(playlist.extinf[1].duration == 8.0)
+            XCTAssert(playlist.extinf[1].title == nil)
+            XCTAssert(playlist.extinf[2].duration == 10.0)
+            XCTAssert(playlist.extinf[2].title == nil)
             
             XCTAssert(playlist.ext_x_byterange.count == 2)
             XCTAssert(playlist.ext_x_byterange[0].length == 1700094)
             XCTAssert(playlist.ext_x_byterange[0].start == 1118)
+            XCTAssert(playlist.ext_x_byterange[1].length == 1777588)
+            XCTAssert(playlist.ext_x_byterange[1].start == nil)
             
-            XCTAssert(playlist.uri.count == 2)
+            XCTAssert(playlist.uri.count == 3)
             XCTAssert(playlist.uri[0] == "http://example.com/low.m3u8")
             
             XCTAssert(playlist.ext_x_discontinuity)
