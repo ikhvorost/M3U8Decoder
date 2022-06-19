@@ -182,7 +182,7 @@ public struct EXT_X_STREAM_INF: Decodable {
     /// The value is a decimal-integer of bits per second. This attribute is OPTIONAL.
     public let average_bandwidth: Int?
     /// The value is a quoted-string containing a comma-separated list of formats, where each format specifies a media sample type that is present in one or more Renditions specified by the Variant Stream. This attribute is REQUIRED.
-    public let codecs: String
+    public let codecs: [String]
     /// The value is a decimal-resolution describing the optimal pixel resolution at which to display all the video in the Variant Stream. This attribute is OPTIONAL.
     public let resolution: RESOLUTION?
     /// The value is a decimal-floating-point describing the maximum frame rate for all the video in the Variant Stream, rounded to three decimal places. This attribute is OPTIONAL.
@@ -210,7 +210,7 @@ public struct EXT_X_I_FRAME_STREAM_INF: Decodable {
     /// The value is a decimal-integer of bits per second. This attribute is OPTIONAL.
     public let average_bandwidth: Int?
     /// The value is a quoted-string containing a comma-separated list of formats, where each format specifies a media sample type that is present in one or more Renditions specified by the Variant Stream. This attribute is REQUIRED.
-    public let codecs: String
+    public let codecs: [String]
     /// The value is a decimal-resolution describing the optimal pixel resolution at which to display all the video in the Variant Stream. This attribute is OPTIONAL.
     public let resolution: RESOLUTION?
     /// The value is an enumerated-string; valid strings are TYPE-0 and NONE. This attribute is OPTIONAL.

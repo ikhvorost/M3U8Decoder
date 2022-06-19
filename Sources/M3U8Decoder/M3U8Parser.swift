@@ -24,6 +24,12 @@
 
 import Foundation
 
+fileprivate enum ParseResult {
+    case object([String : Any])
+    case array([Any])
+    case none
+}
+
 class M3U8Parser {
     private static let regexExtTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
     private static let regexAttributes = try! NSRegularExpression(pattern: "([^=,\\s]+)=((\"([^\"]+)\")|([^,]+))")
@@ -131,7 +137,7 @@ class M3U8Parser {
         return text
     }
     
-    private func parse(name: String, value: String) -> [String : Any]? {
+    private func parse(name: String, value: String) -> ParseResult {
         var keyValues = [String : Any]()
         let range = NSRange(location: 0, length: value.utf16.count)
         
@@ -150,6 +156,8 @@ class M3U8Parser {
                 if title.isEmpty == false {
                     keyValues["title"] = title
                 }
+                
+                return .object(keyValues)
             }
             
         // #EXT-X-BYTERANGE:<n>[@<o>]
@@ -168,6 +176,8 @@ class M3U8Parser {
                 if start.isEmpty == false {
                     keyValues["start"] = self.convertType(text:start)
                 }
+                
+                return .object(keyValues)
             }
         
         // #RESOLUTION=<width>x<height>
@@ -182,12 +192,22 @@ class M3U8Parser {
                 
                 let height = String(value[heightRange])
                 keyValues["height"] = self.convertType(text:height)
+                
+                return .object(keyValues)
             }
+           
+        // CODECS="codec1,codec2,..."
+        case "CODECS":
+            let array = value
+                .trimmingCharacters(in: Self.charSetQuotes)
+                .components(separatedBy: ",")
+            return .array(array)
             
         default:
-            return nil
+            return .none
         }
-        return keyValues.count > 0 ? keyValues : nil
+        
+        return .none
     }
     
     private func parse(attributes: String, keyValues: inout [String : Any]) {
@@ -202,10 +222,12 @@ class M3U8Parser {
             let valueRange = Range($0.range(at: 2), in: attributes)!
             let value = String(attributes[valueRange])
             
-            if let dict = parse(name: name, value: value) {
-                keyValues[key] = dict
-            }
-            else {
+            switch parse(name: name, value: value) {
+            case let .object(object):
+                keyValues[key] = object
+            case let .array(array):
+                keyValues[key] = array
+            case .none:
                 keyValues[key] = self.convertType(text: value)
             }
         }
@@ -217,7 +239,10 @@ class M3U8Parser {
             return true
         }
         
-        var keyValues = parse(name: tag, value: attributes) ?? [String : Any]()
+        var keyValues = [String : Any]()
+        if case let .object(dict) = parse(name: tag, value: attributes) {
+            keyValues = dict
+        }
         parse(attributes: attributes, keyValues: &keyValues)
         guard keyValues.count == 0 else {
             return keyValues
