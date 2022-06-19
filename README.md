@@ -215,7 +215,7 @@ Type | Tag/Attribute | Description
 `EXT_X_KEY` | `#EXT-X-KEY:<attribute-list>` <br> `#EXT_X_SESSION_KEY:<attribute-list>` | Media Segments MAY be encrypted. The EXT-X-KEY/EXT_X_SESSION_KEY tag specifies how to decrypt them.  
 `EXT_X_DATERANGE` | `#EXT-X-DATERANGE:<attribute-list>` | The EXT-X-DATERANGE tag associates a Date Range (i.e., a range o time defined by a starting and ending date) with a set of attribute value pairs.
 `EXTINF` | `#EXTINF:<duration>,[<title>]` |  The EXTINF tag specifies the duration of a Media Segment.
-`EXT_X_BYTERANGE` | `#EXT-X-BYTERANGE:<n>[@<o>]` | The EXT-X-BYTERANGE tag indicates that a Media Segment is a sub-range of the resource identified by its URI.
+`EXT_X_BYTERANGE` | `#EXT-X-BYTERANGE:<n>[@<o>]` <br> `BYTERANGE=<n>[@<o>]` | The EXT-X-BYTERANGE tag indicates that a Media Segment is a sub-range of the resource identified by its URI.
 `EXT_X_SESSION_DATA` | `#EXT-X-SESSION-DATA:<attribute-list>` | The EXT-X-SESSION-DATA tag allows arbitrary session data to be carried in a Master Playlist.
 `EXT_X_START` | `#EXT-X-START:<attribute-list>` | The EXT-X-START tag indicates a preferred point at which to start playing a Playlist.
 `EXT_X_MEDIA` | `#EXT-X-MEDIA:<attribute-list>` | The EXT-X-MEDIA tag is used to relate Media Playlists that contain alternative Renditions of the same content.
@@ -223,7 +223,7 @@ Type | Tag/Attribute | Description
 `EXT_X_I_FRAME_STREAM_INF` | `#EXT-X-I-FRAME-STREAM-INF:<attribute-list>` | The EXT-X-I-FRAME-STREAM-INF tag identifies a Media Playlist file containing the I-frames of a multimedia presentation.
 `RESOLUTION` | `RESOLUTION=<width>x<height>` | The value is a decimal-resolution describing the optimal pixel resolution at which to display all the video in the Variant Stream.
 
-Implementations of these structs you can look at [M3U8Tags.swift](./sources/M3U8Decoder/M3U8Tags.swift) but anyway you can make and use your own ones to decode your playlists.
+Implementations of these structs you can look at [M3U8Tags.swift](Sources/M3U8Decoder/M3U8Tags.swift) but anyway you can make and use your own ones to decode your playlists.
 
 ## Custom tags and attributes
 
