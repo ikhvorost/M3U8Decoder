@@ -216,6 +216,85 @@ final class M3U8_All: XCTestCase {
         }
     }
     
+    func test_data_hex() {
+        struct ExtKey: Decodable {
+            let value: Data
+        }
+        
+        struct Playlist: Decodable {
+            let extm3u: Bool
+            let ext_data: Data
+            let ext_key: ExtKey
+        }
+        
+        
+        let m3u8 = """
+        #EXTM3U
+        #EXT-DATA:0xabcdef
+        #EXT-KEY:VALUE=0x11223344
+        """
+        do {
+            let playlist = try M3U8Decoder().decode(Playlist.self, from: m3u8)
+            
+            XCTAssert(playlist.extm3u == true)
+            
+            XCTAssert(playlist.ext_data.count == 3)
+            XCTAssert(playlist.ext_data[0] == 0xab)
+            XCTAssert(playlist.ext_data[1] == 0xcd)
+            XCTAssert(playlist.ext_data[2] == 0xef)
+            
+            XCTAssert(playlist.ext_key.value.count == 4)
+            XCTAssert(playlist.ext_key.value[0] == 0x11)
+            XCTAssert(playlist.ext_key.value[3] == 0x44)
+        }
+        catch {
+            XCTFail(error.description)
+        }
+    }
+    
+    func test_data_base64() {
+        struct ExtKey: Decodable {
+            let value: Data
+        }
+        
+        struct Playlist: Decodable {
+            let extm3u: Bool
+            let ext_data: Data
+            let ext_key: ExtKey
+            let ext_text: Data
+        }
+        
+        
+        let m3u8 = """
+        #EXTM3U
+        #EXT-DATA:q83v
+        #EXT-KEY:VALUE=ESIzRA==
+        #EXT-TEXT:SGVsbG8=
+        """
+        do {
+            let decoder = M3U8Decoder()
+            decoder.dataDecodingStrategy = .base64
+            let playlist = try decoder.decode(Playlist.self, from: m3u8)
+            
+            XCTAssert(playlist.extm3u == true)
+            
+            XCTAssert(playlist.ext_data.count == 3)
+            XCTAssert(playlist.ext_data[0] == 0xab)
+            XCTAssert(playlist.ext_data[1] == 0xcd)
+            XCTAssert(playlist.ext_data[2] == 0xef)
+            
+            XCTAssert(playlist.ext_key.value.count == 4)
+            XCTAssert(playlist.ext_key.value[0] == 0x11)
+            XCTAssert(playlist.ext_key.value[3] == 0x44)
+            
+            XCTAssert(playlist.ext_text.count > 0)
+            XCTAssert(String(data: playlist.ext_text, encoding: .utf8) == "Hello")
+        }
+        catch {
+            XCTFail(error.description)
+        }
+    }
+    
     func test_playlist() {
         do {
             let playlist = try M3U8Decoder().decode(Playlist.self, from: playlistText)

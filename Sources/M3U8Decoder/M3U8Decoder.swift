@@ -54,10 +54,10 @@ fileprivate extension JSONDecoder.DateDecodingStrategy {
     }
 }
 
-fileprivate extension JSONDecoder.DataDecodingStrategy {
+extension JSONDecoder.DataDecodingStrategy {
     private static let regex = try! NSRegularExpression(pattern: "([0-9a-fA-F]{2})", options: [])
     
-    static let hex = custom {
+    public static let hex = custom {
         let container = try $0.singleValueContainer()
         let string = try container.decode(String.self)
         let range = NSRange(location: 0, length: string.utf16.count)
@@ -129,6 +129,8 @@ public class M3U8Decoder {
     /// The strategy to use for decoding tag and attribute names. Defaults to `.snakeCase`.
     public var keyDecodingStrategy: KeyDecodingStrategy = .snakeCase
     
+    public var dataDecodingStrategy: JSONDecoder.DataDecodingStrategy = .hex
+    
     /// Creates a new, reusable Media Playlist decoder with the default formatting settings and decoding strategies.
     public init() {}
     
@@ -160,7 +162,7 @@ public class M3U8Decoder {
         }
         
         // Data
-        decoder.dataDecodingStrategy = .hex
+        decoder.dataDecodingStrategy = dataDecodingStrategy
         
         let jsonData = try JSONSerialization.data(withJSONObject: dict)
         return try decoder.decode(type, from: jsonData)

@@ -119,12 +119,9 @@ class M3U8Parser {
     }
     
     private func convertType(text: String) -> Any {
-        guard text.hasPrefix("\"") == false else {
+        // Skip quoted strings or hex
+        guard text.hasPrefix("\"") == false, text.hasPrefix("0x") == false, text.hasPrefix("0X") == false else {
             return text.trimmingCharacters(in: Self.charSetQuotes)
-        }
-        
-        guard text.count < 10  else {
-            return text
         }
         
         if let number = Double(text) {
