@@ -27,6 +27,11 @@ import Foundation
 extension String : LocalizedError {
     /// A localized message describing what error occurred.
     public var errorDescription: String? { return self }
+    
+    var camelCased: String {
+        self.split(separator: "-")
+            .reduce("", { $0 + ($0.isEmpty ? String($1) : $1.capitalized) })
+    }
 }
 
 fileprivate extension DateFormatter {
@@ -43,8 +48,40 @@ fileprivate extension DateFormatter {
     }()
 }
 
+/// An implementation of CodingKey that's useful for combining and transforming keys as strings.
+fileprivate struct AnyKey: CodingKey {
+    var stringValue: String
+    var intValue: Int?
+    
+    init?(stringValue: String) {
+        self.stringValue = stringValue
+        self.intValue = nil
+    }
+    
+    init?(intValue: Int) {
+        self.stringValue = String(intValue)
+        self.intValue = intValue
+    }
+}
+
+extension JSONDecoder.KeyDecodingStrategy {
+    static let snakeCase = custom {
+        let key = $0.last!.stringValue
+            .lowercased()
+            .replacingOccurrences(of: "-", with: "_")
+        return AnyKey(stringValue: key)!
+    }
+    
+    static let camelCase = custom {
+        let key = $0.last!.stringValue
+            .lowercased()
+            .camelCased
+        return AnyKey(stringValue: key)!
+    }
+}
+
 fileprivate extension JSONDecoder.DateDecodingStrategy {
-    static let ISO8601 = custom {
+    static let ISO_8601 = custom {
         let container = try $0.singleValueContainer()
         let string = try container.decode(String.self)
         if let date = DateFormatter.iso8601withFractionalSeconds.date(from: string) ?? DateFormatter.iso8601.date(from: string) {
@@ -54,10 +91,10 @@ fileprivate extension JSONDecoder.DateDecodingStrategy {
     }
 }
 
-extension JSONDecoder.DataDecodingStrategy {
+fileprivate extension JSONDecoder.DataDecodingStrategy {
     private static let regex = try! NSRegularExpression(pattern: "([0-9a-fA-F]{2})", options: [])
     
-    public static let hex = custom {
+    static let hex = custom {
         let container = try $0.singleValueContainer()
         let string = try container.decode(String.self)
         let range = NSRange(location: 0, length: string.utf16.count)
@@ -129,7 +166,12 @@ public class M3U8Decoder {
     /// The strategy to use for decoding tag and attribute names. Defaults to `.snakeCase`.
     public var keyDecodingStrategy: KeyDecodingStrategy = .snakeCase
     
-    public var dataDecodingStrategy: JSONDecoder.DataDecodingStrategy = .hex
+    public enum DataDecodingStrategy {
+        case hex
+        case base64
+    }
+    
+    public var dataDecodingStrategy: DataDecodingStrategy = .hex
     
     /// Creates a new, reusable Media Playlist decoder with the default formatting settings and decoding strategies.
     public init() {}
@@ -145,7 +187,6 @@ public class M3U8Decoder {
     /// - Throws: An error if any value throws an error during decoding.
     public func decode<T>(_ type: T.Type, from text: String) throws -> T where T : Decodable {
         let parser = M3U8Parser()
-        parser.keyDecodingStrategy = keyDecodingStrategy
         
         guard text.isEmpty == false, let dict = parser.parse(text: text) else {
             throw "Bad data."
@@ -154,15 +195,28 @@ public class M3U8Decoder {
         let decoder = JSONDecoder()
         
         // Date
-        decoder.dateDecodingStrategy = .ISO8601
+        decoder.dateDecodingStrategy = .ISO_8601
         
         // Key
-        if case .camelCase = keyDecodingStrategy {
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
+        switch keyDecodingStrategy {
+        case .snakeCase:
+            decoder.keyDecodingStrategy = .snakeCase
+        case .camelCase:
+            decoder.keyDecodingStrategy = .camelCase
+        case let .custom(f):
+            decoder.keyDecodingStrategy = .custom {
+                let key = $0.last!.stringValue
+                return AnyKey(stringValue: f(key))!
+            }
         }
         
         // Data
-        decoder.dataDecodingStrategy = dataDecodingStrategy
+        switch dataDecodingStrategy {
+        case .hex:
+            decoder.dataDecodingStrategy = .hex
+        case .base64:
+            decoder.dataDecodingStrategy = .base64
+        }
         
         let jsonData = try JSONSerialization.data(withJSONObject: dict)
         return try decoder.decode(type, from: jsonData)

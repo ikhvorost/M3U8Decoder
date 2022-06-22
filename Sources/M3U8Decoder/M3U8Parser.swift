@@ -45,8 +45,6 @@ class M3U8Parser {
     ]
     private static let charSetQuotes = CharacterSet(charactersIn: "\"")
     
-    var keyDecodingStrategy: M3U8Decoder.KeyDecodingStrategy = .snakeCase
-    
     func parse(text: String) -> [String : Any]? {
         var dict = [String : Any]()
         
@@ -69,24 +67,23 @@ class M3U8Parser {
                         let tag = String(line[tagRange])
                         let attributes = String(line[attributesRange])
                         
-                        let key = key(text: tag)
                         let value = parse(tag: tag, attributes: attributes)
                         
-                        if let item = dict[key] {
+                        if let item = dict[tag] {
                             if var items = item as? [Any] {
                                 items.append(value)
-                                dict[key] = items
+                                dict[tag] = items
                             }
                             else {
-                                dict[key] = [item, value]
+                                dict[tag] = [item, value]
                             }
                         }
                         else {
                             if Self.arrayTags.contains(tag) {
-                                dict[key] = [value]
+                                dict[tag] = [value]
                             }
                             else {
-                                dict[key] = value
+                                dict[tag] = value
                             }
                         }
                     }
@@ -105,19 +102,7 @@ class M3U8Parser {
         }
         return dict.count > 0 ? dict : nil
     }
-    
-    private func key(text: String) -> String {
-        switch keyDecodingStrategy {
-        case .snakeCase:
-            fallthrough
-        case .camelCase:
-            return text.lowercased().replacingOccurrences(of: "-", with: "_")
-            
-        case let .custom(f):
-            return f(text)
-        }
-    }
-    
+        
     private func convertType(text: String) -> Any {
         // Skip quoted strings or hex
         guard text.hasPrefix("\"") == false, text.hasPrefix("0x") == false, text.hasPrefix("0X") == false else {
@@ -214,18 +199,17 @@ class M3U8Parser {
             
             let keyRange = Range($0.range(at: 1), in: attributes)!
             let name = String(attributes[keyRange])
-            let key = key(text: name)
                 
             let valueRange = Range($0.range(at: 2), in: attributes)!
             let value = String(attributes[valueRange])
             
             switch parse(name: name, value: value) {
             case let .object(object):
-                keyValues[key] = object
+                keyValues[name] = object
             case let .other(item):
-                keyValues[key] = item
+                keyValues[name] = item
             case .none:
-                keyValues[key] = self.convertType(text: value)
+                keyValues[name] = self.convertType(text: value)
             }
         }
     }
