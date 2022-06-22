@@ -24,6 +24,12 @@
 
 import Foundation
 
+fileprivate extension String {
+    var isBase64: Bool {
+        Data(base64Encoded: self) != nil
+    }
+}
+
 fileprivate enum ParseResult {
     case object([String : Any])
     case other(Any)
@@ -218,6 +224,11 @@ class M3U8Parser {
         // Bool tag
         guard attributes.isEmpty == false else {
             return true
+        }
+        
+        // Base64
+        if (attributes.hasSuffix("=") || attributes.hasSuffix("==")) && attributes.isBase64 {
+            return attributes
         }
         
         var keyValues = [String : Any]()

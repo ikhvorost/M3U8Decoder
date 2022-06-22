@@ -146,7 +146,7 @@ final class M3U8_All: XCTestCase {
         let m3u8 = """
         #EXTM3U
         #EXT-CUSTOM-TAG1:1
-        #EXT-CUSTOM-TAG2:VALUE1=1,VALUE2="Text",VALUE3=""
+        #EXT-CUSTOM-TAG2:VALUE1=1,VALUE2="Text",VALUE3="",VALUE4=
         #EXT-CUSTOM-ARRAY:1
         #EXT-CUSTOM-ARRAY:2
         #EXT-CUSTOM-ARRAY:3
@@ -159,6 +159,7 @@ final class M3U8_All: XCTestCase {
             let value1: Int
             let value2: String
             let value3: String
+            let value4: String?
         }
         
         struct CustomExtInf: Decodable {
@@ -192,6 +193,8 @@ final class M3U8_All: XCTestCase {
             XCTAssert(playlist.ext_custom_tag2.value1 == 1)
             XCTAssert(playlist.ext_custom_tag2.value2 == "Text")
             XCTAssert(playlist.ext_custom_tag2.value3 == "")
+            XCTAssert(playlist.ext_custom_tag2.value4 == nil)
+            
             XCTAssert(playlist.ext_custom_array.count == 3)
             XCTAssert(playlist.ext_custom_array == [1, 2, 3])
             
@@ -254,22 +257,26 @@ final class M3U8_All: XCTestCase {
     
     func test_data_base64() {
         struct ExtKey: Decodable {
-            let value: Data
+            let value1: Data
+            let value2: Data
+            let value3: Data
         }
         
         struct Playlist: Decodable {
             let extm3u: Bool
-            let ext_data: Data
+            let ext_data1: Data
+            let ext_data2: Data
+            let ext_data3: Data
             let ext_key: ExtKey
-            let ext_text: Data
         }
         
         
         let m3u8 = """
         #EXTM3U
-        #EXT-DATA:q83v
-        #EXT-KEY:VALUE=ESIzRA==
-        #EXT-TEXT:SGVsbG8=
+        #EXT-DATA1:q83v
+        #EXT-DATA2:SGVsbG8=
+        #EXT-DATA3:SGVsbG8gQmFzZTY0IQ==
+        #EXT-KEY:VALUE1=QmFzZTY0,VALUE2=SGVsbG8=,VALUE3=SGVsbG8gQmFzZTY0IQ==
         """
         do {
             let decoder = M3U8Decoder()
@@ -278,17 +285,18 @@ final class M3U8_All: XCTestCase {
             
             XCTAssert(playlist.extm3u == true)
             
-            XCTAssert(playlist.ext_data.count == 3)
-            XCTAssert(playlist.ext_data[0] == 0xab)
-            XCTAssert(playlist.ext_data[1] == 0xcd)
-            XCTAssert(playlist.ext_data[2] == 0xef)
+            // Base64: q83v = 0xabcdef
+            XCTAssert(playlist.ext_data1.count == 3)
+            XCTAssert(playlist.ext_data1[0] == 0xab)
+            XCTAssert(playlist.ext_data1[1] == 0xcd)
+            XCTAssert(playlist.ext_data1[2] == 0xef)
             
-            XCTAssert(playlist.ext_key.value.count == 4)
-            XCTAssert(playlist.ext_key.value[0] == 0x11)
-            XCTAssert(playlist.ext_key.value[3] == 0x44)
+            XCTAssert(String(data: playlist.ext_data2, encoding: .utf8) == "Hello")
+            XCTAssert(String(data: playlist.ext_data3, encoding: .utf8) == "Hello Base64!")
             
-            XCTAssert(playlist.ext_text.count > 0)
-            XCTAssert(String(data: playlist.ext_text, encoding: .utf8) == "Hello")
+            XCTAssert(String(data: playlist.ext_key.value1, encoding: .utf8) == "Base64")
+            XCTAssert(String(data: playlist.ext_key.value2, encoding: .utf8) == "Hello")
+            XCTAssert(String(data: playlist.ext_key.value3, encoding: .utf8) == "Hello Base64!")
         }
         catch {
             XCTFail(error.description)

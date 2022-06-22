@@ -197,6 +197,9 @@ public class M3U8Decoder {
             throw "Bad data."
         }
         
+        // Debug
+        //print(dict)
+        
         let decoder = JSONDecoder()
         
         // Date

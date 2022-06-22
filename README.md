@@ -17,6 +17,7 @@ Decoder for Media Playlist of [HTTP Live Streaming](https://datatracker.ietf.org
 
 - [Overview](#overview)
 - [Key decoding strategy](#key-decoding-strategy)
+- [Data decoding strategy](#data-decoding-strategy)
 - [Predefined types](#predefined-types)
 - [Custom tags and attributes](#custom-tags-and-attributes)
 - [Combine](#combine)
@@ -203,6 +204,67 @@ print(playlist.version) // Prints "7"
 print(playlist.independent_segments) // Prints "true"
 print(playlist.media[0].type) // Prints "CLOSED-CAPTIONS"
 print(playlist.media[0].group_id) // Prints "cc"
+```
+
+## Data decoding strategy
+
+The strategy to use for decoding `Data` values.
+
+### `hex`
+
+Decode the `Data` from a hex string (e.g. `0xa2c4f622...`). This is the default strategy.
+
+Decoding `#EXT-X-KEY` tag with `IV` attribute where data is represented in hex string:
+
+```swift
+struct Playlist: Decodable {
+    let extm3u: Bool
+    let ext_x_version: Int
+    let ext_x_key: EXT_X_KEY
+    let extinf: [EXTINF]
+    let uri: [String]
+}
+
+let m3u8 = """
+#EXTM3U
+#EXT-X-VERSION:7
+#EXT-X-KEY:METHOD=SAMPLE-AES,URI="skd://vod.domain.com/fairplay/d1acadbf70824d178601c2e55675b3b3",IV=0X99b74007b6254e4bd1c6e03631cad15b
+#EXTINF:10,
+http://example.com/low.m3u8
+"""
+
+let playlist = try M3U8Decoder().decode(Playlist.self, from: m3u8)
+
+print(playlist.ext_x_version) // Prints "7"
+print(playlist.ext_x_key.method) // Prints "SAMPLE-AES"
+print(playlist.ext_x_key.uri) // Prints "skd://vod.domain.com/fairplay/d1acadbf70824d178601c2e55675b3b3"
+print(playlist.ext_x_key.iv!) // Prints "16 bytes"
+```
+
+### `base64`
+
+Decode the `Data` from a Base64-encoded string.
+
+```swift
+struct Playlist: Decodable {
+    let extm3u: Bool
+    let ext_x_version: Int
+    let ext_data: Data
+}
+
+let m3u8 = """
+#EXTM3U
+#EXT-X-VERSION:7
+#EXT-DATA:SGVsbG8gQmFzZTY0IQ==
+"""
+
+let decoder = M3U8Decoder()
+decoder.dataDecodingStrategy = .base64
+    
+let playlist = try decoder.decode(Playlist.self, from: m3u8)
+print(playlist.ext_x_version) // Prints "7"
+print(playlist.ext_data) // Prints "13 bytes"
+print(String(data: playlist.ext_data, encoding: .utf8)!) // Prints "Hello Base64!"
 ```
 
 ## Predefined types
