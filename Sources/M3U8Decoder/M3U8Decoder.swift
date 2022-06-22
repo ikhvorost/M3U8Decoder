@@ -166,11 +166,16 @@ public class M3U8Decoder {
     /// The strategy to use for decoding tag and attribute names. Defaults to `.snakeCase`.
     public var keyDecodingStrategy: KeyDecodingStrategy = .snakeCase
     
+    /// The strategy to use for decoding `Data` values.
     public enum DataDecodingStrategy {
+        /// Decode the `Data` from a hex string (e.g. `0xa2c4f622...`). This is the default strategy.
         case hex
+        
+        /// Decode the `Data` from a Base64-encoded string.
         case base64
     }
     
+    /// The strategy to use in decoding binary data. Defaults to `.hex`.
     public var dataDecodingStrategy: DataDecodingStrategy = .hex
     
     /// Creates a new, reusable Media Playlist decoder with the default formatting settings and decoding strategies.
