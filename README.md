@@ -284,6 +284,7 @@ Type | Tag/Attribute | Description
 `EXT_X_STREAM_INF` | `#EXT-X-STREAM-INF:<attribute-list>` | The EXT-X-STREAM-INF tag specifies a Variant Stream, which is a set of Renditions that can be combined to play the presentation.
 `EXT_X_I_FRAME_STREAM_INF` | `#EXT-X-I-FRAME-STREAM-INF:<attribute-list>` | The EXT-X-I-FRAME-STREAM-INF tag identifies a Media Playlist file containing the I-frames of a multimedia presentation.
 `RESOLUTION` | `RESOLUTION=<width>x<height>` | The value is a decimal-resolution describing the optimal pixel resolution at which to display all the video in the Variant Stream.
+`[String]` | `CODECS="codec1,codec2,..."` | The value is a quoted-string containing a comma-separated list of formats, where each format specifies a media sample type that is present in one or more Renditions specified by the Variant Stream.
 
 Implementations of these structs you can look at [M3U8Tags.swift](Sources/M3U8Decoder/M3U8Tags.swift) but anyway you can make and use your own ones to decode your playlists.
 
