@@ -30,6 +30,11 @@ fileprivate extension String {
   }
 }
 
+fileprivate extension CharacterSet {
+  static let quotes = CharacterSet(charactersIn: "\"")
+  static let hashes = CharacterSet(charactersIn: "#")
+}
+
 fileprivate enum ParseResult {
   case object([String : Any])
   case other(Any)
@@ -48,7 +53,6 @@ class M3U8Parser {
     "EXTINF", "EXT-X-BYTERANGE", // Playlist
     "EXT-X-MEDIA", "EXT-X-STREAM-INF", "EXT-X-I-FRAME-STREAM-INF" // Master playlist
   ]
-  private static let charSetQuotes = CharacterSet(charactersIn: "\"")
   
   func parse(text: String) throws -> [String : Any] {
     var dict = [String : Any]()
@@ -103,7 +107,10 @@ class M3U8Parser {
       }
       // Comments
       else if line.hasPrefix("#") {
-        comments.append(line)
+        let comment = line
+          .trimmingCharacters(in: .hashes)
+          .trimmingCharacters(in: .whitespaces)
+        comments.append(comment)
       }
       // URI
       else {
@@ -125,7 +132,7 @@ class M3U8Parser {
   private func convertType(text: String) -> Any {
     // Skip quoted strings or hex
     guard text.hasPrefix("\"") == false, text.hasPrefix("0x") == false, text.hasPrefix("0X") == false else {
-      return text.trimmingCharacters(in: Self.charSetQuotes)
+      return text.trimmingCharacters(in: .quotes)
     }
     
     if let number = Double(text) {
@@ -200,7 +207,7 @@ class M3U8Parser {
       // CODECS="codec1,codec2,..."
       case "CODECS":
         let array = value
-          .trimmingCharacters(in: Self.charSetQuotes)
+          .trimmingCharacters(in: .quotes)
           .components(separatedBy: ",")
         return .other(array)
         

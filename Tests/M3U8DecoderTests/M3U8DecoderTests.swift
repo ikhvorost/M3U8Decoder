@@ -83,6 +83,33 @@ final class M3U8_All: XCTestCase {
     XCTAssert(playlist.ext_x_version == 7)
   }
   
+  func test_comments() throws {
+    let text =
+      """
+      #EXTM3U
+      #comment 1
+      #EXT-X-VERSION:7
+      
+      # comment 2
+      #EXTINF:10
+      segment-0.mp4
+      
+      #     comment 3
+      ## comment 4
+      """
+    
+    struct Playlist: Decodable {
+      let comments: [String]
+    }
+    
+    let playlist = try M3U8Decoder().decode(Playlist.self, from: text)
+    XCTAssert(playlist.comments.count == 4)
+    XCTAssert(playlist.comments[0] == "comment 1")
+    XCTAssert(playlist.comments[1] == "comment 2")
+    XCTAssert(playlist.comments[2] == "comment 3")
+    XCTAssert(playlist.comments[3] == "comment 4")
+  }
+  
   func test_double_attributes() throws {
     let text =
       """
