@@ -117,7 +117,7 @@ fileprivate extension JSONDecoder.DataDecodingStrategy {
 ///         let ext_x_targetduration: Int
 ///         let ext_x_media_sequence: Int
 ///         let extinf: [EXTINF]
-///         let uri: [String]
+///         let uris: [String]
 ///     }
 ///
 ///     let m3u8 = """

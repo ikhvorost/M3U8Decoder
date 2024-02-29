@@ -38,7 +38,7 @@ struct Playlist: Decodable {
     let ext_x_targetduration: Int
     let ext_x_media_sequence: Int
     let extinf: [EXTINF]
-    let uri: [String]
+    let uris: [String]
 }
 
 let m3u8 = """
@@ -79,7 +79,7 @@ struct MasterPlaylist: Decodable {
     let ext_x_media: [EXT_X_MEDIA]
     let ext_x_stream_inf: [EXT_X_STREAM_INF]
     let ext_x_i_frame_stream_inf: [EXT_X_I_FRAME_STREAM_INF]
-    let uri: [String]
+    let uris: [String]
 
     var variantStreams: [(inf: EXT_X_STREAM_INF, uri: String)] {
         Array(zip(ext_x_stream_inf, uri))
@@ -222,7 +222,7 @@ struct Playlist: Decodable {
     let ext_x_version: Int
     let ext_x_key: EXT_X_KEY
     let extinf: [EXTINF]
-    let uri: [String]
+    let uris: [String]
 }
 
 let m3u8 = """
@@ -337,7 +337,7 @@ struct MasterPlaylist: Decodable {
     let ext_x_media: [EXT_X_MEDIA]
     let ext_x_stream_inf: [EXT_X_STREAM_INF]
     let ext_x_i_frame_stream_inf: [EXT_X_I_FRAME_STREAM_INF]
-    let uri: [String]
+    let uris: [String]
 }
     
 var cancellable: Cancellable?
@@ -382,7 +382,7 @@ struct MasterPlaylist: Decodable {
     let ext_x_media: [EXT_X_MEDIA]
     let ext_x_stream_inf: [EXT_X_STREAM_INF]
     let ext_x_i_frame_stream_inf: [EXT_X_I_FRAME_STREAM_INF]
-    let uri: [String]
+    let uris: [String]
 }
 
 Task {

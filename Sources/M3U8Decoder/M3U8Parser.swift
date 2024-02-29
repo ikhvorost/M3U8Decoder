@@ -44,7 +44,6 @@ class M3U8Parser {
   private static let regexResolution = try! NSRegularExpression(pattern: "(\\d+)x(\\d+)")
   
   private static let boolValues = ["YES", "NO"]
-  private static let uriKey = "uri"
   private static let arrayTags = [
     "EXTINF", "EXT-X-BYTERANGE", // Playlist
     "EXT-X-MEDIA", "EXT-X-STREAM-INF", "EXT-X-I-FRAME-STREAM-INF" // Master playlist
@@ -53,6 +52,8 @@ class M3U8Parser {
   
   func parse(text: String) throws -> [String : Any] {
     var dict = [String : Any]()
+    var comments = [String]()
+    var uris = [String]()
     
     let items = text.components(separatedBy: .newlines)
     for i in 0..<items.count {
@@ -102,19 +103,22 @@ class M3U8Parser {
       }
       // Comments
       else if line.hasPrefix("#") {
-        //print(line)
+        comments.append(line)
       }
       // URI
       else {
-        if var items = dict[Self.uriKey] as? [Any] {
-          items.append(line)
-          dict[Self.uriKey] = items
-        }
-        else {
-          dict[Self.uriKey] = [line]
-        }
+        uris.append(line)
       }
     }
+    
+    if comments.count > 0 {
+      dict["comments"] = comments
+    }
+    
+    if uris.count > 0 {
+      dict["uris"] = uris
+    }
+    
     return dict
   }
   

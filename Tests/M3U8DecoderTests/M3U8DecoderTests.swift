@@ -301,7 +301,7 @@ final class M3U8_All: XCTestCase {
       let ext_x_program_date_time: Date // YYYY-MM-DDThh:mm:ss.SSSZ
       let ext_x_daterange: EXT_X_DATERANGE
       let extinf: [EXTINF]
-      let uri: [String]
+      let uris: [String]
       let ext_x_byterange: [EXT_X_BYTERANGE]
       let ext_x_discontinuity: Bool
     }
@@ -363,8 +363,8 @@ final class M3U8_All: XCTestCase {
     XCTAssert(playlist.ext_x_byterange[1].length == 1777588)
     XCTAssert(playlist.ext_x_byterange[1].start == nil)
     
-    XCTAssert(playlist.uri.count == 3)
-    XCTAssert(playlist.uri[0] == "http://example.com/low.m3u8")
+    XCTAssert(playlist.uris.count == 3)
+    XCTAssert(playlist.uris[0] == "http://example.com/low.m3u8")
     
     XCTAssert(playlist.ext_x_discontinuity)
   }
@@ -397,7 +397,7 @@ final class M3U8_All: XCTestCase {
       let ext_x_media: [EXT_X_MEDIA]
       let ext_x_i_frame_stream_inf: [EXT_X_I_FRAME_STREAM_INF]
       let ext_x_stream_inf: [EXT_X_STREAM_INF]
-      let uri: [String]
+      let uris: [String]
     }
   
     let playlist = try M3U8Decoder().decode(MaterPlaylist.self, from: masterPlaylistText)
@@ -457,8 +457,8 @@ final class M3U8_All: XCTestCase {
     XCTAssert(playlist.ext_x_stream_inf[0].subtitles == "sub1")
     XCTAssert(playlist.ext_x_stream_inf[0].closed_captions == "cc")
     
-    XCTAssert(playlist.uri.count == 1)
-    XCTAssert(playlist.uri[0] == "http://example.com/low.m3u8")
+    XCTAssert(playlist.uris.count == 1)
+    XCTAssert(playlist.uris[0] == "http://example.com/low.m3u8")
   }
 }
 
@@ -472,10 +472,10 @@ final class M3U8Tests_File: XCTestCase {
     let ext_x_media: [EXT_X_MEDIA]
     let ext_x_stream_inf: [EXT_X_STREAM_INF]
     let ext_x_i_frame_stream_inf: [EXT_X_I_FRAME_STREAM_INF]
-    let uri: [String]
+    let uris: [String]
     
     var variantStreams: [(EXT_X_STREAM_INF, String)] {
-      Array(zip(ext_x_stream_inf, uri))
+      Array(zip(ext_x_stream_inf, uris))
     }
   }
   
@@ -500,11 +500,11 @@ final class M3U8Tests_File: XCTestCase {
     let ext_x_playlist_type: String
     let ext_x_key: EXT_X_KEY
     let extinf: [EXTINF]
-    let uri: [String]
+    let uris: [String]
     let ext_x_endlist: Bool
     
     var mediaSegments: [(EXTINF, String)] {
-      Array(zip(extinf, uri))
+      Array(zip(extinf, uris))
     }
   }
   
@@ -573,9 +573,9 @@ final class M3U8Tests_File: XCTestCase {
       XCTAssert(playlist.ext_x_stream_inf[2].audio == "aac_2_192_cdn_1")
       
       // URI
-      XCTAssert(playlist.uri.count == 18)
-      XCTAssert(playlist.uri[0] == "sample/video_7_03_3_fairplay.m3u8")
-      XCTAssert(playlist.uri[2] == "sample/video_7_05_3_fairplay.m3u8")
+      XCTAssert(playlist.uris.count == 18)
+      XCTAssert(playlist.uris[0] == "sample/video_7_03_3_fairplay.m3u8")
+      XCTAssert(playlist.uris[2] == "sample/video_7_05_3_fairplay.m3u8")
       
       // Variant Streams
       XCTAssert(playlist.variantStreams.count == 18)
@@ -650,9 +650,9 @@ final class M3U8Tests_File: XCTestCase {
       XCTAssert(playlist.extinf[0].title == nil)
       
       // URI
-      XCTAssert(playlist.uri.count == 1461)
-      XCTAssert(playlist.uri[0] == "/22001/vod/dyn/f24d38bc60a411ec88b4005056a5d12f/sample/v0200000001.ts")
-      XCTAssert(playlist.uri[2] == "/22001/vod/dyn/f24d38bc60a411ec88b4005056a5d12f/sample/v0200000003.ts")
+      XCTAssert(playlist.uris.count == 1461)
+      XCTAssert(playlist.uris[0] == "/22001/vod/dyn/f24d38bc60a411ec88b4005056a5d12f/sample/v0200000001.ts")
+      XCTAssert(playlist.uris[2] == "/22001/vod/dyn/f24d38bc60a411ec88b4005056a5d12f/sample/v0200000003.ts")
       
       // Media segments
       XCTAssert(playlist.mediaSegments.count == 1461)
@@ -676,10 +676,10 @@ final class M3U8Tests_URL: XCTestCase {
     let ext_x_media: [EXT_X_MEDIA]
     let ext_x_stream_inf: [EXT_X_STREAM_INF]
     let ext_x_i_frame_stream_inf: [EXT_X_I_FRAME_STREAM_INF]
-    let uri: [String]
+    let uris: [String]
     
     var variantStreams: [(EXT_X_STREAM_INF, String)] {
-      Array(zip(ext_x_stream_inf, uri))
+      Array(zip(ext_x_stream_inf, uris))
     }
   }
   
@@ -725,8 +725,8 @@ final class M3U8Tests_URL: XCTestCase {
     XCTAssert(playlist.ext_x_stream_inf[2].subtitles == "sub1")
     
     // URI
-    XCTAssert(playlist.uri.count == 24)
-    XCTAssert(playlist.uri[2] == "v8/prog_index.m3u8")
+    XCTAssert(playlist.uris.count == 24)
+    XCTAssert(playlist.uris[2] == "v8/prog_index.m3u8")
     
     XCTAssert(playlist.variantStreams.count == 24)
   }
@@ -834,13 +834,13 @@ final class M3U8Tests_URL: XCTestCase {
     let ext_x_map: EXT_X_MAP
     let extinf: [EXTINF]
     let ext_x_byterange: [EXT_X_BYTERANGE]
-    let uri: [String]
+    let uris: [String]
     let ext_x_endlist: Bool
     
     typealias MediaSegment = (inf: EXTINF, byterange: EXT_X_BYTERANGE, uri: String)
     var mediaSegments: [MediaSegment] {
       var items = [MediaSegment]()
-      for (inf, (byterange, uri)) in zip(extinf, zip(ext_x_byterange, uri)) {
+      for (inf, (byterange, uri)) in zip(extinf, zip(ext_x_byterange, uris)) {
         items.append((inf, byterange, uri))
       }
       return items
@@ -853,7 +853,7 @@ final class M3U8Tests_URL: XCTestCase {
         do {
           let masterPlaylist = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.bipbopURL)
           
-          guard let uri = masterPlaylist.uri.first else {
+          guard let uri = masterPlaylist.uris.first else {
             throw  "No video variant"
           }
           
@@ -881,8 +881,8 @@ final class M3U8Tests_URL: XCTestCase {
           XCTAssert(videoPlaylist.ext_x_byterange[0].length == 1508000)
           XCTAssert(videoPlaylist.ext_x_byterange[0].start == 719)
           
-          XCTAssert(videoPlaylist.uri.count == 100)
-          XCTAssert(videoPlaylist.uri[0] == "main.mp4")
+          XCTAssert(videoPlaylist.uris.count == 100)
+          XCTAssert(videoPlaylist.uris[0] == "main.mp4")
           
           XCTAssert(videoPlaylist.mediaSegments.count == 100)
           XCTAssert(videoPlaylist.mediaSegments[0].inf.duration == 6.00000)
