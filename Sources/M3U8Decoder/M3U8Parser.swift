@@ -51,16 +51,21 @@ class M3U8Parser {
   ]
   private static let charSetQuotes = CharacterSet(charactersIn: "\"")
   
-  func parse(text: String) -> [String : Any]? {
+  func parse(text: String) throws -> [String : Any] {
     var dict = [String : Any]()
     
     let items = text.components(separatedBy: .newlines)
     for i in 0..<items.count {
-      let line = items[i]
+      let line = items[i].trimmingCharacters(in: .whitespaces)
       
-      // Empty line
-      guard line.isEmpty == false else {
+      // Skip empty lines
+      guard !line.isEmpty else {
         continue
+      }
+      
+      // Check for the first line with #EXTM3U
+      guard !dict.isEmpty || line == "#EXTM3U" else {
+        throw "Not the Playlist."
       }
       
       // #EXT
@@ -95,8 +100,12 @@ class M3U8Parser {
           }
         }
       }
+      // Comments
+      else if line.hasPrefix("#") {
+        //print(line)
+      }
       // URI
-      else if let _ = URL(string: line) {
+      else {
         if var items = dict[Self.uriKey] as? [Any] {
           items.append(line)
           dict[Self.uriKey] = items
@@ -106,7 +115,7 @@ class M3U8Parser {
         }
       }
     }
-    return dict.count > 0 ? dict : nil
+    return dict
   }
   
   private func convertType(text: String) -> Any {
@@ -130,7 +139,7 @@ class M3U8Parser {
     let range = NSRange(location: 0, length: value.utf16.count)
     
     switch name {
-        // #EXTINF:<duration>,[<title>]
+      // #EXTINF:<duration>,[<title>]
       case "EXTINF":
         if let match = Self.regexExtInf.matches(in: value, options: [], range: range).first,
            match.numberOfRanges == 3,
@@ -148,7 +157,7 @@ class M3U8Parser {
           return .object(keyValues)
         }
         
-        // #EXT-X-BYTERANGE:<n>[@<o>]
+      // #EXT-X-BYTERANGE:<n>[@<o>]
       case "EXT-X-BYTERANGE":
         fallthrough
       case "BYTERANGE":
@@ -168,7 +177,7 @@ class M3U8Parser {
           return .object(keyValues)
         }
         
-        // #RESOLUTION=<width>x<height>
+      // #RESOLUTION=<width>x<height>
       case "RESOLUTION":
         let matches = Self.regexResolution.matches(in: value, options: [], range: range)
         if let match = matches.first, match.numberOfRanges == 3,
@@ -184,7 +193,7 @@ class M3U8Parser {
           return .object(keyValues)
         }
         
-        // CODECS="codec1,codec2,..."
+      // CODECS="codec1,codec2,..."
       case "CODECS":
         let array = value
           .trimmingCharacters(in: Self.charSetQuotes)

@@ -193,12 +193,11 @@ public class M3U8Decoder {
   public func decode<T>(_ type: T.Type, from text: String) throws -> T where T : Decodable {
     let parser = M3U8Parser()
     
-    guard text.isEmpty == false, let dict = parser.parse(text: text) else {
-      throw "Bad data."
+    guard text.isEmpty == false else {
+      throw "Empty data."
     }
     
-    // Debug
-    //print(dict)
+    let dict = try parser.parse(text: text)
     
     let decoder = JSONDecoder()
     

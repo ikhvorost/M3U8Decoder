@@ -1,13 +1,10 @@
 import XCTest
 import Combine
-import M3U8Decoder
-//@testable import M3U8Decoder
+/*@testable*/ import M3U8Decoder
 
 
 extension Error {
-  var description: String {
-    (self as NSError).description
-  }
+  var description: String { (self as NSError).description }
 }
 
 extension XCTestCase {
@@ -21,139 +18,103 @@ extension XCTestCase {
 // https://datatracker.ietf.org/doc/html/draft-pantos-http-live-streaming-23#section-8
 final class M3U8_All: XCTestCase {
   
-  struct Playlist: Decodable {
-    let extm3u: Bool
-    let ext_x_version: Int // #EXT-X-VERSION:<n>
-    
-    let ext_x_targetduration: Int
-    let ext_x_media_sequence: Int
-    let ext_x_discontinuity_sequence: Int
-    let ext_x_endlist: Bool
-    let ext_x_playlist_type: String
-    let ext_x_i_frames_only: Bool
-    
-    let ext_x_key: EXT_X_KEY
-    let ext_x_map: EXT_X_MAP
-    let ext_x_program_date_time: Date // YYYY-MM-DDThh:mm:ss.SSSZ
-    let ext_x_daterange: EXT_X_DATERANGE
-    let extinf: [EXTINF]
-    let uri: [String]
-    let ext_x_byterange: [EXT_X_BYTERANGE]
-    let ext_x_discontinuity: Bool
+  func test_error_empty() {
+    struct Playlist: Decodable {
+      let extm3u: Bool
+    }
+    XCTAssertThrowsError(try M3U8Decoder().decode(Playlist.self, from: "")) {
+      XCTAssert($0.localizedDescription == "Empty data.")
+    }
   }
   
-  let playlistText = """
-    #EXTM3U
-    #EXT-X-VERSION:7
-    
-    #EXT-X-TARGETDURATION:10
-    #EXT-X-MEDIA-SEQUENCE:2680
-    #EXT-X-DISCONTINUITY-SEQUENCE:0
-    #EXT-X-PLAYLIST-TYPE:VOD
-    #EXT-X-I-FRAMES-ONLY
-    
-    #EXT-X-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",KEYFORMATVERSIONS="1",URI="skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3",IV=0X99b74007b6254e4bd1c6e03631cad15b
-    #EXT-X-MAP:URI="main.mp4",BYTERANGE="1118@0"
-    
-    #EXT-X-PROGRAM-DATE-TIME:2010-02-19T14:54:23.031+08:00
-    #EXT-X-DATERANGE:ID="splice-6FFFFFF0",CLASS="com.xyz.dai.adbreak",START-DATE="2014-03-05T11:15:00Z",END-DATE="2014-03-05T11:15:00Z",DURATION=59.993,PLANNED-DURATION=59.993,X-COM-EXAMPLE-AD-ID="XYZ123",SCTE35-OUT=0xFC002F0000000000FF000014056FFFFFF000E011622DCAFF000052636200000000000A0008029896F50000008700000000,END-ON-NEXT=YES
-    
-    #EXTINF:13.333,Sample artist - Sample title
-    #EXT-X-BYTERANGE:1700094@1118
-    http://example.com/low.m3u8
-    
-    #EXT-X-DISCONTINUITY
-    
-    #EXTINF:8.00000,
-    #EXT-X-BYTERANGE:1777588
-    main.mp4
-    
-    #EXTINF:10
-    next.mp4
-    
-    #EXT-X-ENDLIST
-    """
+  func test_error_data() {
+    struct Playlist: Decodable {
+      let extm3u: Bool
+    }
+    XCTAssertThrowsError(try M3U8Decoder().decode(Playlist.self, from: Data([255, 255, 255]))) {
+      XCTAssert($0.localizedDescription == "Bad data.")
+    }
+  }
   
-  func test_error_baddata() {
-    do {
-      _ = try M3U8Decoder().decode(Playlist.self, from: "")
-      XCTFail()
-    }
-    catch {
-      XCTAssert(error.localizedDescription == "Bad data.")
-    }
-    
-    do {
-      _ = try M3U8Decoder().decode(Playlist.self, from: Data([255]))
-      XCTFail()
-    }
-    catch {
-      XCTAssert(error.localizedDescription == "Bad data.")
-    }
-    
-    do {
-      let text = """
-            # coment 1
-            # coment 2
-            """
-      _ = try M3U8Decoder().decode(Playlist.self, from: text)
-      XCTFail()
-    }
-    catch {
-      XCTAssert(error.localizedDescription == "Bad data.")
-    }
-    
-    do {
-      let text = """
-            #EXT-X-PROGRAM-DATE-TIME:2010-02-19
-            """
+  func test_error_not_playlist() {
+    let text =
+      """
       
-      struct BadPlaylist: Decodable {
-        let ext_x_program_date_time: Date // YYYY-MM-DDThh:mm:ss.SSSZ
-      }
-      _ = try M3U8Decoder().decode(BadPlaylist.self, from: text)
-      XCTFail()
+      # coment 1
+      #EXTM3U
+      """
+    
+    struct Playlist: Decodable {
+      let extm3u: Bool
     }
-    catch {
-      XCTAssert(error.localizedDescription == "The data couldn’t be read because it isn’t in the correct format.")
+    
+    XCTAssertThrowsError(try M3U8Decoder().decode(Playlist.self, from: text)) {
+      XCTAssert($0.localizedDescription == "Not the Playlist.")
     }
   }
   
-  func test_double_attributes() {
+  func test_error_bad_format() {
+    struct BadPlaylist: Decodable {
+      let ext_x_program_date_time: Date // YYYY-MM-DDThh:mm:ss.SSSZ
+    }
+    let text =
+      """
+      #EXTM3U
+      #EXT-X-PROGRAM-DATE-TIME:2010-02-19
+      """
+    XCTAssertThrowsError(try M3U8Decoder().decode(BadPlaylist.self, from: text)) {
+      XCTAssert($0.localizedDescription == "The data couldn’t be read because it isn’t in the correct format.")
+    }
+  }
+  
+  func test_default() throws {
+    let text =
+      """
+        
+       #EXTM3U
+      #EXT-X-VERSION:7
+      """
+    
+    struct Playlist: Decodable {
+      let ext_x_version: Int
+    }
+    
+    let playlist = try M3U8Decoder().decode(Playlist.self, from: text)
+    XCTAssert(playlist.ext_x_version == 7)
+  }
+  
+  func test_double_attributes() throws {
+    let text =
+      """
+      #EXTM3U
+      #EXT-X-VERSION:7
+      #EXT-X-MAP:URI="main1.mp4",BYTERANGE="1118@0",URI="main2.mp4"
+      """
+    
     struct Playlist: Decodable {
       let ext_x_map: EXT_X_MAP
     }
     
-    let m3u8 = """
-        #EXTM3U
-        #EXT-X-VERSION:7
-        #EXT-X-MAP:URI="main1.mp4",BYTERANGE="1118@0",URI="main2.mp4"
-        """
+    let playlist = try M3U8Decoder().decode(Playlist.self, from: text)
     
-    do {
-      let playlist = try M3U8Decoder().decode(Playlist.self, from: m3u8)
-      
-      XCTAssert(playlist.ext_x_map.byterange?.length == 1118)
-      XCTAssert(playlist.ext_x_map.byterange?.start == 0)
-      XCTAssert(playlist.ext_x_map.uri == "main2.mp4")
-    }
-    catch {
-      XCTFail(error.description)
-    }
+    XCTAssert(playlist.ext_x_map.byterange?.length == 1118)
+    XCTAssert(playlist.ext_x_map.byterange?.start == 0)
+    XCTAssert(playlist.ext_x_map.uri == "main2.mp4")
   }
   
-  func test_custom() {
-    let m3u8 = """
-        #EXTM3U
-        #EXT-CUSTOM-TAG1:1
-        #EXT-CUSTOM-TAG2:VALUE1=1,VALUE2="Text",VALUE3="",VALUE4=
-        #EXT-CUSTOM-ARRAY:1
-        #EXT-CUSTOM-ARRAY:2
-        #EXT-CUSTOM-ARRAY:3
-        
-        #EXTINF:10,title="Dark Horse",artist="Katy Perry / Juicy J",song_spot=\"M\" MediaBaseId=\"1971116\" itunesTrackId=\"0\" amgTrackId=\"-1\" amgArtistId=\"0\" TAID=\"35141\" TPID=\"23894643\" cartcutId=\"0729388001\" amgArtworkURL=\"http://assets.iheart.com/images/1080/MI0003667474\" length=\"00:03:32\" unsID=\"-1\"
-        main.mp4
-        """
+  func test_custom_tags() throws {
+    let text =
+      """
+      #EXTM3U
+      #EXT-CUSTOM-TAG1:1
+      #EXT-CUSTOM-TAG2:VALUE1=1,VALUE2="Text",VALUE3="",VALUE4=
+      #EXT-CUSTOM-ARRAY:1
+      #EXT-CUSTOM-ARRAY:2
+      #EXT-CUSTOM-ARRAY:3
+      
+      #EXTINF:10,title="Dark Horse",artist="Katy Perry / Juicy J",song_spot=\"M\" MediaBaseId=\"1971116\" itunesTrackId=\"0\" amgTrackId=\"-1\" amgArtistId=\"0\" TAID=\"35141\" TPID=\"23894643\" cartcutId=\"0729388001\" amgArtworkURL=\"http://assets.iheart.com/images/1080/MI0003667474\" length=\"00:03:32\" unsID=\"-1\"
+      main.mp4
+      """
     
     struct CustomAttributes: Decodable {
       let value1: Int
@@ -186,40 +147,42 @@ final class M3U8_All: XCTestCase {
       let extinf: [CustomExtInf]
     }
     
-    do {
-      let playlist = try M3U8Decoder().decode(CustomPlaylist.self, from: m3u8)
-      
-      XCTAssert(playlist.ext_custom_tag1 == 1)
-      XCTAssert(playlist.ext_custom_tag2.value1 == 1)
-      XCTAssert(playlist.ext_custom_tag2.value2 == "Text")
-      XCTAssert(playlist.ext_custom_tag2.value3 == "")
-      XCTAssert(playlist.ext_custom_tag2.value4 == nil)
-      
-      XCTAssert(playlist.ext_custom_array.count == 3)
-      XCTAssert(playlist.ext_custom_array == [1, 2, 3])
-      
-      // EXTINF
-      XCTAssert(playlist.extinf[0].duration == 10)
-      XCTAssert(playlist.extinf[0].title == "Dark Horse")
-      XCTAssert(playlist.extinf[0].artist == "Katy Perry / Juicy J")
-      XCTAssert(playlist.extinf[0].song_spot == "M")
-      XCTAssert(playlist.extinf[0].mediabaseid == "1971116")
-      XCTAssert(playlist.extinf[0].itunestrackid == "0")
-      XCTAssert(playlist.extinf[0].amgtrackid == "-1")
-      XCTAssert(playlist.extinf[0].amgartistid == "0")
-      XCTAssert(playlist.extinf[0].taid == "35141")
-      XCTAssert(playlist.extinf[0].tpid == "23894643")
-      XCTAssert(playlist.extinf[0].cartcutid == "0729388001")
-      XCTAssert(playlist.extinf[0].amgartworkurl == "http://assets.iheart.com/images/1080/MI0003667474")
-      XCTAssert(playlist.extinf[0].length == "00:03:32")
-      XCTAssert(playlist.extinf[0].unsid == "-1")
-    }
-    catch {
-      XCTFail(error.description)
-    }
+    let playlist = try M3U8Decoder().decode(CustomPlaylist.self, from: text)
+    
+    XCTAssert(playlist.ext_custom_tag1 == 1)
+    XCTAssert(playlist.ext_custom_tag2.value1 == 1)
+    XCTAssert(playlist.ext_custom_tag2.value2 == "Text")
+    XCTAssert(playlist.ext_custom_tag2.value3 == "")
+    XCTAssert(playlist.ext_custom_tag2.value4 == nil)
+    
+    XCTAssert(playlist.ext_custom_array.count == 3)
+    XCTAssert(playlist.ext_custom_array == [1, 2, 3])
+    
+    // EXTINF
+    XCTAssert(playlist.extinf[0].duration == 10)
+    XCTAssert(playlist.extinf[0].title == "Dark Horse")
+    XCTAssert(playlist.extinf[0].artist == "Katy Perry / Juicy J")
+    XCTAssert(playlist.extinf[0].song_spot == "M")
+    XCTAssert(playlist.extinf[0].mediabaseid == "1971116")
+    XCTAssert(playlist.extinf[0].itunestrackid == "0")
+    XCTAssert(playlist.extinf[0].amgtrackid == "-1")
+    XCTAssert(playlist.extinf[0].amgartistid == "0")
+    XCTAssert(playlist.extinf[0].taid == "35141")
+    XCTAssert(playlist.extinf[0].tpid == "23894643")
+    XCTAssert(playlist.extinf[0].cartcutid == "0729388001")
+    XCTAssert(playlist.extinf[0].amgartworkurl == "http://assets.iheart.com/images/1080/MI0003667474")
+    XCTAssert(playlist.extinf[0].length == "00:03:32")
+    XCTAssert(playlist.extinf[0].unsid == "-1")
   }
   
-  func test_data_hex() {
+  func test_data_hex() throws {
+    let text =
+      """
+      #EXTM3U
+      #EXT-DATA:0xabcdef
+      #EXT-KEY:VALUE=0x11223344
+      """
+    
     struct ExtKey: Decodable {
       let value: Data
     }
@@ -230,32 +193,30 @@ final class M3U8_All: XCTestCase {
       let ext_key: ExtKey
     }
     
+    let playlist = try M3U8Decoder().decode(Playlist.self, from: text)
     
-    let m3u8 = """
-        #EXTM3U
-        #EXT-DATA:0xabcdef
-        #EXT-KEY:VALUE=0x11223344
-        """
-    do {
-      let playlist = try M3U8Decoder().decode(Playlist.self, from: m3u8)
-      
-      XCTAssert(playlist.extm3u == true)
-      
-      XCTAssert(playlist.ext_data.count == 3)
-      XCTAssert(playlist.ext_data[0] == 0xab)
-      XCTAssert(playlist.ext_data[1] == 0xcd)
-      XCTAssert(playlist.ext_data[2] == 0xef)
-      
-      XCTAssert(playlist.ext_key.value.count == 4)
-      XCTAssert(playlist.ext_key.value[0] == 0x11)
-      XCTAssert(playlist.ext_key.value[3] == 0x44)
-    }
-    catch {
-      XCTFail(error.description)
-    }
+    XCTAssert(playlist.extm3u == true)
+    
+    XCTAssert(playlist.ext_data.count == 3)
+    XCTAssert(playlist.ext_data[0] == 0xab)
+    XCTAssert(playlist.ext_data[1] == 0xcd)
+    XCTAssert(playlist.ext_data[2] == 0xef)
+    
+    XCTAssert(playlist.ext_key.value.count == 4)
+    XCTAssert(playlist.ext_key.value[0] == 0x11)
+    XCTAssert(playlist.ext_key.value[3] == 0x44)
   }
   
-  func test_data_base64() {
+  func test_data_base64() throws {
+    let text =
+      """
+      #EXTM3U
+      #EXT-DATA1:q83v
+      #EXT-DATA2:SGVsbG8=
+      #EXT-DATA3:SGVsbG8gQmFzZTY0IQ==
+      #EXT-KEY:VALUE1=QmFzZTY0,VALUE2=SGVsbG8=,VALUE3=SGVsbG8gQmFzZTY0IQ==
+      """
+    
     struct ExtKey: Decodable {
       let value1: Data
       let value2: Data
@@ -270,202 +231,234 @@ final class M3U8_All: XCTestCase {
       let ext_key: ExtKey
     }
     
+    let decoder = M3U8Decoder()
+    decoder.dataDecodingStrategy = .base64
+    let playlist = try decoder.decode(Playlist.self, from: text)
     
-    let m3u8 = """
-        #EXTM3U
-        #EXT-DATA1:q83v
-        #EXT-DATA2:SGVsbG8=
-        #EXT-DATA3:SGVsbG8gQmFzZTY0IQ==
-        #EXT-KEY:VALUE1=QmFzZTY0,VALUE2=SGVsbG8=,VALUE3=SGVsbG8gQmFzZTY0IQ==
-        """
-    do {
-      let decoder = M3U8Decoder()
-      decoder.dataDecodingStrategy = .base64
-      let playlist = try decoder.decode(Playlist.self, from: m3u8)
-      
-      XCTAssert(playlist.extm3u == true)
-      
-      // Base64: q83v = 0xabcdef
-      XCTAssert(playlist.ext_data1.count == 3)
-      XCTAssert(playlist.ext_data1[0] == 0xab)
-      XCTAssert(playlist.ext_data1[1] == 0xcd)
-      XCTAssert(playlist.ext_data1[2] == 0xef)
-      
-      XCTAssert(String(data: playlist.ext_data2, encoding: .utf8) == "Hello")
-      XCTAssert(String(data: playlist.ext_data3, encoding: .utf8) == "Hello Base64!")
-      
-      XCTAssert(String(data: playlist.ext_key.value1, encoding: .utf8) == "Base64")
-      XCTAssert(String(data: playlist.ext_key.value2, encoding: .utf8) == "Hello")
-      XCTAssert(String(data: playlist.ext_key.value3, encoding: .utf8) == "Hello Base64!")
-    }
-    catch {
-      XCTFail(error.description)
-    }
+    XCTAssert(playlist.extm3u == true)
+    
+    // Base64: q83v = 0xabcdef
+    XCTAssert(playlist.ext_data1.count == 3)
+    XCTAssert(playlist.ext_data1[0] == 0xab)
+    XCTAssert(playlist.ext_data1[1] == 0xcd)
+    XCTAssert(playlist.ext_data1[2] == 0xef)
+    
+    XCTAssert(String(data: playlist.ext_data2, encoding: .utf8) == "Hello")
+    XCTAssert(String(data: playlist.ext_data3, encoding: .utf8) == "Hello Base64!")
+    
+    XCTAssert(String(data: playlist.ext_key.value1, encoding: .utf8) == "Base64")
+    XCTAssert(String(data: playlist.ext_key.value2, encoding: .utf8) == "Hello")
+    XCTAssert(String(data: playlist.ext_key.value3, encoding: .utf8) == "Hello Base64!")
   }
   
-  func test_playlist() {
-    do {
-      let playlist = try M3U8Decoder().decode(Playlist.self, from: playlistText)
-      print(playlist)
+  func test_playlist() throws {
+    let playlistText =
+      """
+      #EXTM3U
+      #EXT-X-VERSION:7
       
-      // Basic Tags
+      #EXT-X-TARGETDURATION:10
+      #EXT-X-MEDIA-SEQUENCE:2680
+      #EXT-X-DISCONTINUITY-SEQUENCE:0
+      #EXT-X-PLAYLIST-TYPE:VOD
+      #EXT-X-I-FRAMES-ONLY
       
-      XCTAssert(playlist.extm3u)
-      XCTAssert(playlist.ext_x_version == 7)
+      #EXT-X-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",KEYFORMATVERSIONS="1",URI="skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3",IV=0X99b74007b6254e4bd1c6e03631cad15b
+      #EXT-X-MAP:URI="main.mp4",BYTERANGE="1118@0"
       
-      // Media Playlist Tags
+      #EXT-X-PROGRAM-DATE-TIME:2010-02-19T14:54:23.031+08:00
+      #EXT-X-DATERANGE:ID="splice-6FFFFFF0",CLASS="com.xyz.dai.adbreak",START-DATE="2014-03-05T11:15:00Z",END-DATE="2014-03-05T11:15:00Z",DURATION=59.993,PLANNED-DURATION=59.993,X-COM-EXAMPLE-AD-ID="XYZ123",SCTE35-OUT=0xFC002F0000000000FF000014056FFFFFF000E011622DCAFF000052636200000000000A0008029896F50000008700000000,END-ON-NEXT=YES
       
-      XCTAssert(playlist.ext_x_targetduration == 10)
-      XCTAssert(playlist.ext_x_media_sequence == 2680)
-      XCTAssert(playlist.ext_x_discontinuity_sequence == 0)
-      XCTAssert(playlist.ext_x_endlist)
-      XCTAssert(playlist.ext_x_playlist_type == "VOD")
-      XCTAssert(playlist.ext_x_i_frames_only)
+      #EXTINF:13.333,Sample artist - Sample title
+      #EXT-X-BYTERANGE:1700094@1118
+      http://example.com/low.m3u8
       
-      // Media Segment Tags
+      #EXT-X-DISCONTINUITY
       
-      XCTAssert(playlist.ext_x_key.method == "SAMPLE-AES")
-      XCTAssert(playlist.ext_x_key.keyformat == "com.apple.streamingkeydelivery")
-      XCTAssert(playlist.ext_x_key.keyformatversions == "1")
-      XCTAssert(playlist.ext_x_key.uri == "skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3")
-      XCTAssert(playlist.ext_x_key.iv?.count == 16) // 128-bit "0X99b74007b6254e4bd1c6e03631cad15b"
-      XCTAssert(playlist.ext_x_key.iv?[0] == 0x99)
-      XCTAssert(playlist.ext_x_key.iv?[15] == 0x5b)
+      #EXTINF:8.00000,
+      #EXT-X-BYTERANGE:1777588
+      main.mp4
       
-      XCTAssert(playlist.ext_x_map.uri == "main.mp4")
-      XCTAssert(playlist.ext_x_map.byterange?.length == 1118)
-      XCTAssert(playlist.ext_x_map.byterange?.start == 0)
+      #EXTINF:10
+      next.mp4
       
-      XCTAssert(playlist.ext_x_program_date_time.description == "2010-02-19 06:54:23 +0000")
+      #EXT-X-ENDLIST
+      """
+    
+    struct Playlist: Decodable {
+      let extm3u: Bool
+      let ext_x_version: Int // #EXT-X-VERSION:<n>
       
-      XCTAssert(playlist.ext_x_daterange.id == "splice-6FFFFFF0")
-      XCTAssert(playlist.ext_x_daterange.class == "com.xyz.dai.adbreak")
-      XCTAssert(playlist.ext_x_daterange.start_date.description == "2014-03-05 11:15:00 +0000")
-      XCTAssert(playlist.ext_x_daterange.end_date?.description == "2014-03-05 11:15:00 +0000")
-      XCTAssert(playlist.ext_x_daterange.duration == 59.993)
-      XCTAssert(playlist.ext_x_daterange.planned_duration == 59.993)
-      //XCTAssert(playlist.ext_x_daterange.x_com_example_ad_id == "XYZ123")
-      XCTAssert(playlist.ext_x_daterange.scte35_out == "0xFC002F0000000000FF000014056FFFFFF000E011622DCAFF000052636200000000000A0008029896F50000008700000000")
-      XCTAssert(playlist.ext_x_daterange.end_on_next == true)
+      let ext_x_targetduration: Int
+      let ext_x_media_sequence: Int
+      let ext_x_discontinuity_sequence: Int
+      let ext_x_endlist: Bool
+      let ext_x_playlist_type: String
+      let ext_x_i_frames_only: Bool
       
-      XCTAssert(playlist.extinf.count == 3)
-      XCTAssert(playlist.extinf[0].duration == 13.333)
-      XCTAssert(playlist.extinf[0].title == "Sample artist - Sample title")
-      XCTAssert(playlist.extinf[1].duration == 8.0)
-      XCTAssert(playlist.extinf[1].title == nil)
-      XCTAssert(playlist.extinf[2].duration == 10.0)
-      XCTAssert(playlist.extinf[2].title == nil)
-      
-      XCTAssert(playlist.ext_x_byterange.count == 2)
-      XCTAssert(playlist.ext_x_byterange[0].length == 1700094)
-      XCTAssert(playlist.ext_x_byterange[0].start == 1118)
-      XCTAssert(playlist.ext_x_byterange[1].length == 1777588)
-      XCTAssert(playlist.ext_x_byterange[1].start == nil)
-      
-      XCTAssert(playlist.uri.count == 3)
-      XCTAssert(playlist.uri[0] == "http://example.com/low.m3u8")
-      
-      XCTAssert(playlist.ext_x_discontinuity)
+      let ext_x_key: EXT_X_KEY
+      let ext_x_map: EXT_X_MAP
+      let ext_x_program_date_time: Date // YYYY-MM-DDThh:mm:ss.SSSZ
+      let ext_x_daterange: EXT_X_DATERANGE
+      let extinf: [EXTINF]
+      let uri: [String]
+      let ext_x_byterange: [EXT_X_BYTERANGE]
+      let ext_x_discontinuity: Bool
     }
-    catch {
-      XCTFail(error.description)
-    }
+    
+    let playlist = try M3U8Decoder().decode(Playlist.self, from: playlistText)
+    //print(playlist)
+    
+    // Basic Tags
+    
+    XCTAssert(playlist.extm3u)
+    XCTAssert(playlist.ext_x_version == 7)
+    
+    // Media Playlist Tags
+    
+    XCTAssert(playlist.ext_x_targetduration == 10)
+    XCTAssert(playlist.ext_x_media_sequence == 2680)
+    XCTAssert(playlist.ext_x_discontinuity_sequence == 0)
+    XCTAssert(playlist.ext_x_endlist)
+    XCTAssert(playlist.ext_x_playlist_type == "VOD")
+    XCTAssert(playlist.ext_x_i_frames_only)
+    
+    // Media Segment Tags
+    
+    XCTAssert(playlist.ext_x_key.method == "SAMPLE-AES")
+    XCTAssert(playlist.ext_x_key.keyformat == "com.apple.streamingkeydelivery")
+    XCTAssert(playlist.ext_x_key.keyformatversions == "1")
+    XCTAssert(playlist.ext_x_key.uri == "skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3")
+    XCTAssert(playlist.ext_x_key.iv?.count == 16) // 128-bit "0X99b74007b6254e4bd1c6e03631cad15b"
+    XCTAssert(playlist.ext_x_key.iv?[0] == 0x99)
+    XCTAssert(playlist.ext_x_key.iv?[15] == 0x5b)
+    
+    XCTAssert(playlist.ext_x_map.uri == "main.mp4")
+    XCTAssert(playlist.ext_x_map.byterange?.length == 1118)
+    XCTAssert(playlist.ext_x_map.byterange?.start == 0)
+    
+    XCTAssert(playlist.ext_x_program_date_time.description == "2010-02-19 06:54:23 +0000")
+    
+    XCTAssert(playlist.ext_x_daterange.id == "splice-6FFFFFF0")
+    XCTAssert(playlist.ext_x_daterange.class == "com.xyz.dai.adbreak")
+    XCTAssert(playlist.ext_x_daterange.start_date.description == "2014-03-05 11:15:00 +0000")
+    XCTAssert(playlist.ext_x_daterange.end_date?.description == "2014-03-05 11:15:00 +0000")
+    XCTAssert(playlist.ext_x_daterange.duration == 59.993)
+    XCTAssert(playlist.ext_x_daterange.planned_duration == 59.993)
+    //XCTAssert(playlist.ext_x_daterange.x_com_example_ad_id == "XYZ123")
+    XCTAssert(playlist.ext_x_daterange.scte35_out == "0xFC002F0000000000FF000014056FFFFFF000E011622DCAFF000052636200000000000A0008029896F50000008700000000")
+    XCTAssert(playlist.ext_x_daterange.end_on_next == true)
+    
+    XCTAssert(playlist.extinf.count == 3)
+    XCTAssert(playlist.extinf[0].duration == 13.333)
+    XCTAssert(playlist.extinf[0].title == "Sample artist - Sample title")
+    XCTAssert(playlist.extinf[1].duration == 8.0)
+    XCTAssert(playlist.extinf[1].title == nil)
+    XCTAssert(playlist.extinf[2].duration == 10.0)
+    XCTAssert(playlist.extinf[2].title == nil)
+    
+    XCTAssert(playlist.ext_x_byterange.count == 2)
+    XCTAssert(playlist.ext_x_byterange[0].length == 1700094)
+    XCTAssert(playlist.ext_x_byterange[0].start == 1118)
+    XCTAssert(playlist.ext_x_byterange[1].length == 1777588)
+    XCTAssert(playlist.ext_x_byterange[1].start == nil)
+    
+    XCTAssert(playlist.uri.count == 3)
+    XCTAssert(playlist.uri[0] == "http://example.com/low.m3u8")
+    
+    XCTAssert(playlist.ext_x_discontinuity)
   }
   
-  struct MaterPlaylist: Decodable {
-    let extm3u: Bool
-    let ext_x_independent_segments: Bool
-    let ext_x_start: EXT_X_START
-    let ext_x_session_data: EXT_X_SESSION_DATA
-    let ext_x_session_key: EXT_X_KEY
-    let ext_x_media: [EXT_X_MEDIA]
-    let ext_x_i_frame_stream_inf: [EXT_X_I_FRAME_STREAM_INF]
-    let ext_x_stream_inf: [EXT_X_STREAM_INF]
-    let uri: [String]
-  }
+  func test_master() throws {
+    let masterPlaylistText =
+      """
+      #EXTM3U
+      #EXT-X-INDEPENDENT-SEGMENTS
+      
+      #EXT-X-START:TIME-OFFSET=25,PRECISE=YES
+      
+      #EXT-X-SESSION-DATA:DATA-ID="com.example.title",LANGUAGE="en",VALUE="This is an example",URI="data.json"
+      #EXT-X-SESSION-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",KEYFORMATVERSIONS="1",URI="skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3"
+      
+      #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac_2_192_cdn_1",NAME="English",LANGUAGE="en",ASSOC-LANGUAGE="fr",CHANNELS="2",INSTREAM-ID="CC1",AUTOSELECT=YES,DEFAULT=YES,FORCED=YES,CHARACTERISTICS="public.accessibility.describes-music-and-sound",URI="sample/audio_7_02_3_fairplay.m3u8"
+      
+      #EXT-X-I-FRAME-STREAM-INF:AVERAGE-BANDWIDTH=928091,BANDWIDTH=1015727,CODECS="avc1.640028",RESOLUTION=1920x1080,URI="tp5/iframe_index.m3u8"
+      
+      #EXT-X-STREAM-INF:BANDWIDTH=3679027,AVERAGE-BANDWIDTH=3063808,RESOLUTION=1280x720,FRAME-RATE=23.976,CODECS="avc1.640028,mp4a.40.2",HDCP-LEVEL="TYPE-0",CLOSED-CAPTIONS="cc",AUDIO="aac_2_192_cdn_1",VIDEO="aac_2_192_cdn_1",SUBTITLES="sub1"
+      http://example.com/low.m3u8
+      """
   
-  let masterPlaylistText = """
-    #EXTM3U
-    #EXT-X-INDEPENDENT-SEGMENTS
-    
-    #EXT-X-START:TIME-OFFSET=25,PRECISE=YES
-    
-    #EXT-X-SESSION-DATA:DATA-ID="com.example.title",LANGUAGE="en",VALUE="This is an example",URI="data.json"
-    #EXT-X-SESSION-KEY:METHOD=SAMPLE-AES,KEYFORMAT="com.apple.streamingkeydelivery",KEYFORMATVERSIONS="1",URI="skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3"
-    
-    #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac_2_192_cdn_1",NAME="English",LANGUAGE="en",ASSOC-LANGUAGE="fr",CHANNELS="2",INSTREAM-ID="CC1",AUTOSELECT=YES,DEFAULT=YES,FORCED=YES,CHARACTERISTICS="public.accessibility.describes-music-and-sound",URI="sample/audio_7_02_3_fairplay.m3u8"
-    
-    #EXT-X-I-FRAME-STREAM-INF:AVERAGE-BANDWIDTH=928091,BANDWIDTH=1015727,CODECS="avc1.640028",RESOLUTION=1920x1080,URI="tp5/iframe_index.m3u8"
-    
-    #EXT-X-STREAM-INF:BANDWIDTH=3679027,AVERAGE-BANDWIDTH=3063808,RESOLUTION=1280x720,FRAME-RATE=23.976,CODECS="avc1.640028,mp4a.40.2",HDCP-LEVEL="TYPE-0",CLOSED-CAPTIONS="cc",AUDIO="aac_2_192_cdn_1",VIDEO="aac_2_192_cdn_1",SUBTITLES="sub1"
-    http://example.com/low.m3u8
-    """
+    struct MaterPlaylist: Decodable {
+      let extm3u: Bool
+      let ext_x_independent_segments: Bool
+      let ext_x_start: EXT_X_START
+      let ext_x_session_data: EXT_X_SESSION_DATA
+      let ext_x_session_key: EXT_X_KEY
+      let ext_x_media: [EXT_X_MEDIA]
+      let ext_x_i_frame_stream_inf: [EXT_X_I_FRAME_STREAM_INF]
+      let ext_x_stream_inf: [EXT_X_STREAM_INF]
+      let uri: [String]
+    }
   
-  func test_master() {
-    do {
-      let playlist = try M3U8Decoder().decode(MaterPlaylist.self, from: masterPlaylistText)
-      print(playlist)
-      
-      XCTAssert(playlist.extm3u)
-      XCTAssert(playlist.ext_x_independent_segments)
-      
-      XCTAssert(playlist.ext_x_start.time_offset == 25)
-      XCTAssert(playlist.ext_x_start.precise == true)
-      
-      XCTAssert(playlist.ext_x_session_data.data_id == "com.example.title")
-      XCTAssert(playlist.ext_x_session_data.value == "This is an example")
-      XCTAssert(playlist.ext_x_session_data.uri == "data.json")
-      XCTAssert(playlist.ext_x_session_data.language == "en")
-      
-      XCTAssert(playlist.ext_x_session_key.method == "SAMPLE-AES")
-      XCTAssert(playlist.ext_x_session_key.keyformat == "com.apple.streamingkeydelivery")
-      XCTAssert(playlist.ext_x_session_key.keyformatversions == "1")
-      XCTAssert(playlist.ext_x_session_key.uri == "skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3")
-      
-      XCTAssert(playlist.ext_x_media.count == 1)
-      XCTAssert(playlist.ext_x_media[0].type == "AUDIO")
-      XCTAssert(playlist.ext_x_media[0].group_id == "aac_2_192_cdn_1")
-      XCTAssert(playlist.ext_x_media[0].name == "English")
-      XCTAssert(playlist.ext_x_media[0].language == "en")
-      XCTAssert(playlist.ext_x_media[0].assoc_language == "fr")
-      XCTAssert(playlist.ext_x_media[0].autoselect == true)
-      XCTAssert(playlist.ext_x_media[0].default == true)
-      XCTAssert(playlist.ext_x_media[0].instream_id == "CC1")
-      XCTAssert(playlist.ext_x_media[0].channels == "2")
-      XCTAssert(playlist.ext_x_media[0].forced == true)
-      XCTAssert(playlist.ext_x_media[0].uri == "sample/audio_7_02_3_fairplay.m3u8")
-      XCTAssert(playlist.ext_x_media[0].characteristics == "public.accessibility.describes-music-and-sound")
-      
-      XCTAssert(playlist.ext_x_i_frame_stream_inf.count == 1)
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].bandwidth == 1015727)
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].average_bandwidth == 928091)
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution?.width == 1920)
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution?.height == 1080)
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].codecs.count == 1)
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].codecs[0] == "avc1.640028")
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].uri == "tp5/iframe_index.m3u8")
-      
-      XCTAssert(playlist.ext_x_stream_inf.count == 1)
-      XCTAssert(playlist.ext_x_stream_inf[0].bandwidth == 3679027)
-      XCTAssert(playlist.ext_x_stream_inf[0].average_bandwidth == 3063808)
-      XCTAssert(playlist.ext_x_stream_inf[0].codecs.count == 2)
-      XCTAssert(playlist.ext_x_stream_inf[0].codecs[0] == "avc1.640028")
-      XCTAssert(playlist.ext_x_stream_inf[0].codecs[1] == "mp4a.40.2")
-      XCTAssert(playlist.ext_x_stream_inf[0].resolution?.width == 1280)
-      XCTAssert(playlist.ext_x_stream_inf[0].resolution?.height == 720)
-      XCTAssert(playlist.ext_x_stream_inf[0].frame_rate == 23.976)
-      XCTAssert(playlist.ext_x_stream_inf[0].hdcp_level == "TYPE-0")
-      XCTAssert(playlist.ext_x_stream_inf[0].audio == "aac_2_192_cdn_1")
-      XCTAssert(playlist.ext_x_stream_inf[0].video == "aac_2_192_cdn_1")
-      XCTAssert(playlist.ext_x_stream_inf[0].subtitles == "sub1")
-      XCTAssert(playlist.ext_x_stream_inf[0].closed_captions == "cc")
-      
-      XCTAssert(playlist.uri.count == 1)
-      XCTAssert(playlist.uri[0] == "http://example.com/low.m3u8")
-    }
-    catch {
-      XCTFail(error.description)
-    }
+    let playlist = try M3U8Decoder().decode(MaterPlaylist.self, from: masterPlaylistText)
+    print(playlist)
+    
+    XCTAssert(playlist.extm3u)
+    XCTAssert(playlist.ext_x_independent_segments)
+    
+    XCTAssert(playlist.ext_x_start.time_offset == 25)
+    XCTAssert(playlist.ext_x_start.precise == true)
+    
+    XCTAssert(playlist.ext_x_session_data.data_id == "com.example.title")
+    XCTAssert(playlist.ext_x_session_data.value == "This is an example")
+    XCTAssert(playlist.ext_x_session_data.uri == "data.json")
+    XCTAssert(playlist.ext_x_session_data.language == "en")
+    
+    XCTAssert(playlist.ext_x_session_key.method == "SAMPLE-AES")
+    XCTAssert(playlist.ext_x_session_key.keyformat == "com.apple.streamingkeydelivery")
+    XCTAssert(playlist.ext_x_session_key.keyformatversions == "1")
+    XCTAssert(playlist.ext_x_session_key.uri == "skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3")
+    
+    XCTAssert(playlist.ext_x_media.count == 1)
+    XCTAssert(playlist.ext_x_media[0].type == "AUDIO")
+    XCTAssert(playlist.ext_x_media[0].group_id == "aac_2_192_cdn_1")
+    XCTAssert(playlist.ext_x_media[0].name == "English")
+    XCTAssert(playlist.ext_x_media[0].language == "en")
+    XCTAssert(playlist.ext_x_media[0].assoc_language == "fr")
+    XCTAssert(playlist.ext_x_media[0].autoselect == true)
+    XCTAssert(playlist.ext_x_media[0].default == true)
+    XCTAssert(playlist.ext_x_media[0].instream_id == "CC1")
+    XCTAssert(playlist.ext_x_media[0].channels == "2")
+    XCTAssert(playlist.ext_x_media[0].forced == true)
+    XCTAssert(playlist.ext_x_media[0].uri == "sample/audio_7_02_3_fairplay.m3u8")
+    XCTAssert(playlist.ext_x_media[0].characteristics == "public.accessibility.describes-music-and-sound")
+    
+    XCTAssert(playlist.ext_x_i_frame_stream_inf.count == 1)
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].bandwidth == 1015727)
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].average_bandwidth == 928091)
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution?.width == 1920)
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution?.height == 1080)
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].codecs.count == 1)
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].codecs[0] == "avc1.640028")
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].uri == "tp5/iframe_index.m3u8")
+    
+    XCTAssert(playlist.ext_x_stream_inf.count == 1)
+    XCTAssert(playlist.ext_x_stream_inf[0].bandwidth == 3679027)
+    XCTAssert(playlist.ext_x_stream_inf[0].average_bandwidth == 3063808)
+    XCTAssert(playlist.ext_x_stream_inf[0].codecs.count == 2)
+    XCTAssert(playlist.ext_x_stream_inf[0].codecs[0] == "avc1.640028")
+    XCTAssert(playlist.ext_x_stream_inf[0].codecs[1] == "mp4a.40.2")
+    XCTAssert(playlist.ext_x_stream_inf[0].resolution?.width == 1280)
+    XCTAssert(playlist.ext_x_stream_inf[0].resolution?.height == 720)
+    XCTAssert(playlist.ext_x_stream_inf[0].frame_rate == 23.976)
+    XCTAssert(playlist.ext_x_stream_inf[0].hdcp_level == "TYPE-0")
+    XCTAssert(playlist.ext_x_stream_inf[0].audio == "aac_2_192_cdn_1")
+    XCTAssert(playlist.ext_x_stream_inf[0].video == "aac_2_192_cdn_1")
+    XCTAssert(playlist.ext_x_stream_inf[0].subtitles == "sub1")
+    XCTAssert(playlist.ext_x_stream_inf[0].closed_captions == "cc")
+    
+    XCTAssert(playlist.uri.count == 1)
+    XCTAssert(playlist.uri[0] == "http://example.com/low.m3u8")
   }
 }
 
@@ -740,9 +733,11 @@ final class M3U8Tests_URL: XCTestCase {
   
   func test_url_error() {
     wait { expectation in
-      M3U8Decoder().decode(MasterPlaylist.self, from: URL(string: "https://somedomain.com/playlist.m3u8")!) { result in
+      M3U8Decoder().decode(MasterPlaylist.self, from: URL(string: "https://domain.com/playlist.m3u8")!) { result in
         if case let .failure(error) = result {
-          XCTAssert(error.localizedDescription.hasPrefix("The certificate for this server is invalid.") == true)
+          let error = error as NSError
+          XCTAssert(error.domain == NSURLErrorDomain)
+          XCTAssert(error.code == -1011)
           expectation.fulfill()
         }
       }
@@ -764,7 +759,7 @@ final class M3U8Tests_URL: XCTestCase {
     wait { expectation in
       M3U8Decoder().decode(MasterPlaylist.self, from: URL(string: "https://google.com")!) { result in
         if case let .failure(error) = result {
-          XCTAssert(error.localizedDescription == "Bad data.")
+          XCTAssert(error.localizedDescription == "Not the Playlist.")
           expectation.fulfill()
         }
       }
