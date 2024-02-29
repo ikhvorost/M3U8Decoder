@@ -68,7 +68,7 @@ class M3U8Parser {
         continue
       }
       
-      // Check for the first line with #EXTM3U
+      // #EXTM3U
       guard !dict.isEmpty || line == "#EXTM3U" else {
         throw "Not the Playlist."
       }
@@ -114,7 +114,8 @@ class M3U8Parser {
       }
       // URI
       else {
-        uris.append(line)
+        let uri = line.trimmingCharacters(in: .whitespaces)
+        uris.append(uri)
       }
     }
     

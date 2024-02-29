@@ -72,21 +72,6 @@ final class M3U8_All: XCTestCase {
       """
         
        #EXTM3U
-      #EXT-X-VERSION:7
-      """
-    
-    struct Playlist: Decodable {
-      let ext_x_version: Int
-    }
-    
-    let playlist = try M3U8Decoder().decode(Playlist.self, from: text)
-    XCTAssert(playlist.ext_x_version == 7)
-  }
-  
-  func test_comments() throws {
-    let text =
-      """
-      #EXTM3U
       #comment 1
       #EXT-X-VERSION:7
       
@@ -96,13 +81,24 @@ final class M3U8_All: XCTestCase {
       
       #     comment 3
       ## comment 4
+      #EXTINF:10
+         segment-1.mp4
       """
     
     struct Playlist: Decodable {
+      let ext_x_version: Int
+      let uris: [String]
       let comments: [String]
     }
     
     let playlist = try M3U8Decoder().decode(Playlist.self, from: text)
+    
+    XCTAssert(playlist.ext_x_version == 7)
+    
+    XCTAssert(playlist.uris.count == 2)
+    XCTAssert(playlist.uris[0] == "segment-0.mp4")
+    XCTAssert(playlist.uris[1] == "segment-1.mp4")
+    
     XCTAssert(playlist.comments.count == 4)
     XCTAssert(playlist.comments[0] == "comment 1")
     XCTAssert(playlist.comments[1] == "comment 2")
@@ -538,157 +534,137 @@ final class M3U8Tests_File: XCTestCase {
   static let masterPlaylistUrl = Bundle.module.url(forResource: "master_7_3_fairplay", withExtension: "m3u8")!
   static let videoPlaylistUrl = Bundle.module.url(forResource: "video_7_02_3_fairplay", withExtension: "m3u8")!
   
-  func test_master() {
-    do {
-      let playlist = try M3U8Decoder().decode(MasterPlaylist.self, from: Self.masterPlaylistUrl)
-      print(playlist)
-      
-      XCTAssert(playlist.extm3u)
-      XCTAssert(playlist.ext_x_version == 7)
-      XCTAssert(playlist.ext_x_independent_segments)
-      
-      // #EXT-X-SESSION-KEY
-      
-      XCTAssert(playlist.ext_x_session_key.method == "SAMPLE-AES")
-      XCTAssert(playlist.ext_x_session_key.keyformat == "com.apple.streamingkeydelivery")
-      XCTAssert(playlist.ext_x_session_key.keyformatversions == "1")
-      XCTAssert(playlist.ext_x_session_key.uri == "skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3")
-      
-      // #EXT-X-MEDIA
-      
-      XCTAssert(playlist.ext_x_media.count == 5)
-      XCTAssert(playlist.ext_x_media[0].type == "CLOSED-CAPTIONS")
-      XCTAssert(playlist.ext_x_media[0].group_id == "cc")
-      XCTAssert(playlist.ext_x_media[0].name == "CC1")
-      XCTAssert(playlist.ext_x_media[0].language == "en")
-      XCTAssert(playlist.ext_x_media[0].autoselect == true)
-      XCTAssert(playlist.ext_x_media[0].default == true)
-      XCTAssert(playlist.ext_x_media[0].instream_id == "CC1")
-      
-      XCTAssert(playlist.ext_x_media[2].type == "AUDIO")
-      XCTAssert(playlist.ext_x_media[2].group_id == "aac_2_192_cdn_1")
-      XCTAssert(playlist.ext_x_media[2].name == "English")
-      XCTAssert(playlist.ext_x_media[2].language == "en")
-      XCTAssert(playlist.ext_x_media[2].channels == "2")
-      XCTAssert(playlist.ext_x_media[2].autoselect == true)
-      XCTAssert(playlist.ext_x_media[2].default == true)
-      XCTAssert(playlist.ext_x_media[2].uri == "sample/audio_7_02_3_fairplay.m3u8")
-      
-      // #EXT-X-STREAM-INF
-      
-      XCTAssert(playlist.ext_x_stream_inf.count == 18)
-      XCTAssert(playlist.ext_x_stream_inf[0].bandwidth == 3679027)
-      XCTAssert(playlist.ext_x_stream_inf[0].average_bandwidth == 3063808)
-      XCTAssert(playlist.ext_x_stream_inf[0].resolution?.width == 1280)
-      XCTAssert(playlist.ext_x_stream_inf[0].resolution?.height == 720)
-      XCTAssert(playlist.ext_x_stream_inf[0].frame_rate == 23.976)
-      XCTAssert(playlist.ext_x_stream_inf[0].codecs.count == 2)
-      XCTAssert(playlist.ext_x_stream_inf[0].codecs[0] == "avc1.640028")
-      XCTAssert(playlist.ext_x_stream_inf[0].codecs[1] == "mp4a.40.2")
-      XCTAssert(playlist.ext_x_stream_inf[0].closed_captions == "cc")
-      XCTAssert(playlist.ext_x_stream_inf[0].audio == "aac_2_192_cdn_1")
-      
-      XCTAssert(playlist.ext_x_stream_inf[2].bandwidth == 8225587)
-      XCTAssert(playlist.ext_x_stream_inf[2].average_bandwidth == 6852608)
-      XCTAssert(playlist.ext_x_stream_inf[2].resolution?.width == 1920)
-      XCTAssert(playlist.ext_x_stream_inf[2].resolution?.height == 1080)
-      XCTAssert(playlist.ext_x_stream_inf[2].frame_rate == 23.976)
-      XCTAssert(playlist.ext_x_stream_inf[2].codecs.count == 2)
-      XCTAssert(playlist.ext_x_stream_inf[2].codecs[0] == "avc1.640028")
-      XCTAssert(playlist.ext_x_stream_inf[2].codecs[1] == "mp4a.40.2")
-      XCTAssert(playlist.ext_x_stream_inf[2].closed_captions == "cc")
-      XCTAssert(playlist.ext_x_stream_inf[2].audio == "aac_2_192_cdn_1")
-      
-      // URI
-      XCTAssert(playlist.uris.count == 18)
-      XCTAssert(playlist.uris[0] == "sample/video_7_03_3_fairplay.m3u8")
-      XCTAssert(playlist.uris[2] == "sample/video_7_05_3_fairplay.m3u8")
-      
-      // Variant Streams
-      XCTAssert(playlist.variantStreams.count == 18)
-      XCTAssert(playlist.variantStreams[0].0.bandwidth == 3679027)
-      
-      // #EXT-X-I-FRAME-STREAM-INF
-      
-      XCTAssert(playlist.ext_x_i_frame_stream_inf.count == 1)
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].bandwidth == 95828)
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].average_bandwidth == nil)
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution?.width == 512)
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution?.height == 288)
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].codecs.count == 1)
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].codecs[0] == "avc1.4d401f")
-      XCTAssert(playlist.ext_x_i_frame_stream_inf[0].uri == "iframe_00.m3u8")
-    }
-    catch {
-      XCTFail(error.description)
-    }
+  func test_master() throws {
+    let playlist = try M3U8Decoder().decode(MasterPlaylist.self, from: Self.masterPlaylistUrl)
+    print(playlist)
+    
+    XCTAssert(playlist.extm3u)
+    XCTAssert(playlist.ext_x_version == 7)
+    XCTAssert(playlist.ext_x_independent_segments)
+    
+    // #EXT-X-SESSION-KEY
+    
+    XCTAssert(playlist.ext_x_session_key.method == "SAMPLE-AES")
+    XCTAssert(playlist.ext_x_session_key.keyformat == "com.apple.streamingkeydelivery")
+    XCTAssert(playlist.ext_x_session_key.keyformatversions == "1")
+    XCTAssert(playlist.ext_x_session_key.uri == "skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3")
+    
+    // #EXT-X-MEDIA
+    
+    XCTAssert(playlist.ext_x_media.count == 5)
+    XCTAssert(playlist.ext_x_media[0].type == "CLOSED-CAPTIONS")
+    XCTAssert(playlist.ext_x_media[0].group_id == "cc")
+    XCTAssert(playlist.ext_x_media[0].name == "CC1")
+    XCTAssert(playlist.ext_x_media[0].language == "en")
+    XCTAssert(playlist.ext_x_media[0].autoselect == true)
+    XCTAssert(playlist.ext_x_media[0].default == true)
+    XCTAssert(playlist.ext_x_media[0].instream_id == "CC1")
+    
+    XCTAssert(playlist.ext_x_media[2].type == "AUDIO")
+    XCTAssert(playlist.ext_x_media[2].group_id == "aac_2_192_cdn_1")
+    XCTAssert(playlist.ext_x_media[2].name == "English")
+    XCTAssert(playlist.ext_x_media[2].language == "en")
+    XCTAssert(playlist.ext_x_media[2].channels == "2")
+    XCTAssert(playlist.ext_x_media[2].autoselect == true)
+    XCTAssert(playlist.ext_x_media[2].default == true)
+    XCTAssert(playlist.ext_x_media[2].uri == "sample/audio_7_02_3_fairplay.m3u8")
+    
+    // #EXT-X-STREAM-INF
+    
+    XCTAssert(playlist.ext_x_stream_inf.count == 18)
+    XCTAssert(playlist.ext_x_stream_inf[0].bandwidth == 3679027)
+    XCTAssert(playlist.ext_x_stream_inf[0].average_bandwidth == 3063808)
+    XCTAssert(playlist.ext_x_stream_inf[0].resolution?.width == 1280)
+    XCTAssert(playlist.ext_x_stream_inf[0].resolution?.height == 720)
+    XCTAssert(playlist.ext_x_stream_inf[0].frame_rate == 23.976)
+    XCTAssert(playlist.ext_x_stream_inf[0].codecs.count == 2)
+    XCTAssert(playlist.ext_x_stream_inf[0].codecs[0] == "avc1.640028")
+    XCTAssert(playlist.ext_x_stream_inf[0].codecs[1] == "mp4a.40.2")
+    XCTAssert(playlist.ext_x_stream_inf[0].closed_captions == "cc")
+    XCTAssert(playlist.ext_x_stream_inf[0].audio == "aac_2_192_cdn_1")
+    
+    XCTAssert(playlist.ext_x_stream_inf[2].bandwidth == 8225587)
+    XCTAssert(playlist.ext_x_stream_inf[2].average_bandwidth == 6852608)
+    XCTAssert(playlist.ext_x_stream_inf[2].resolution?.width == 1920)
+    XCTAssert(playlist.ext_x_stream_inf[2].resolution?.height == 1080)
+    XCTAssert(playlist.ext_x_stream_inf[2].frame_rate == 23.976)
+    XCTAssert(playlist.ext_x_stream_inf[2].codecs.count == 2)
+    XCTAssert(playlist.ext_x_stream_inf[2].codecs[0] == "avc1.640028")
+    XCTAssert(playlist.ext_x_stream_inf[2].codecs[1] == "mp4a.40.2")
+    XCTAssert(playlist.ext_x_stream_inf[2].closed_captions == "cc")
+    XCTAssert(playlist.ext_x_stream_inf[2].audio == "aac_2_192_cdn_1")
+    
+    // URI
+    XCTAssert(playlist.uris.count == 18)
+    XCTAssert(playlist.uris[0] == "sample/video_7_03_3_fairplay.m3u8")
+    XCTAssert(playlist.uris[2] == "sample/video_7_05_3_fairplay.m3u8")
+    
+    // Variant Streams
+    XCTAssert(playlist.variantStreams.count == 18)
+    XCTAssert(playlist.variantStreams[0].0.bandwidth == 3679027)
+    
+    // #EXT-X-I-FRAME-STREAM-INF
+    
+    XCTAssert(playlist.ext_x_i_frame_stream_inf.count == 1)
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].bandwidth == 95828)
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].average_bandwidth == nil)
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution?.width == 512)
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].resolution?.height == 288)
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].codecs.count == 1)
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].codecs[0] == "avc1.4d401f")
+    XCTAssert(playlist.ext_x_i_frame_stream_inf[0].uri == "iframe_00.m3u8")
   }
   
-  func test_master_camelCase() {
-    do {
-      let decoder = M3U8Decoder()
-      decoder.keyDecodingStrategy = .camelCase
-      let playlist = try decoder.decode(MasterPlaylistCamelCase.self, from: Self.masterPlaylistUrl)
-      print(playlist)
-    }
-    catch {
-      XCTFail(error.description)
-    }
+  func test_master_camelCase() throws {
+    let decoder = M3U8Decoder()
+    decoder.keyDecodingStrategy = .camelCase
+    let playlist = try decoder.decode(MasterPlaylistCamelCase.self, from: Self.masterPlaylistUrl)
+    print(playlist)
   }
   
-  func test_master_customKey() {
-    do {
-      let decoder = M3U8Decoder()
-      decoder.keyDecodingStrategy = .custom { key in
-        return key
-          .lowercased()
-          .replacingOccurrences(of: "ext", with: "")
-          .replacingOccurrences(of: "-x-", with: "")
-          .replacingOccurrences(of: "-", with: "_")
-      }
-      let playlist = try decoder.decode(MasterPlaylistCustomKey.self, from: Self.masterPlaylistUrl)
-      print(playlist)
+  func test_master_customKey() throws {
+    let decoder = M3U8Decoder()
+    decoder.keyDecodingStrategy = .custom { key in
+      return key
+        .lowercased()
+        .replacingOccurrences(of: "ext", with: "")
+        .replacingOccurrences(of: "-x-", with: "")
+        .replacingOccurrences(of: "-", with: "_")
     }
-    catch {
-      XCTFail(error.description)
-    }
+    let playlist = try decoder.decode(MasterPlaylistCustomKey.self, from: Self.masterPlaylistUrl)
+    print(playlist)
   }
   
-  func test_playlist() {
-    do {
-      let playlist = try M3U8Decoder().decode(VideoPlaylist.self, from: Self.videoPlaylistUrl)
-      print(playlist)
-      
-      XCTAssert(playlist.extm3u)
-      XCTAssert(playlist.ext_x_version == 7)
-      XCTAssert(playlist.ext_x_targetduration == 3)
-      XCTAssert(playlist.ext_x_playlist_type == "VOD")
-      
-      // #EXT-X-KEY
-      XCTAssert(playlist.ext_x_key.method == "SAMPLE-AES")
-      XCTAssert(playlist.ext_x_key.keyformat == "com.apple.streamingkeydelivery")
-      XCTAssert(playlist.ext_x_key.keyformatversions == "1")
-      XCTAssert(playlist.ext_x_key.uri == "skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3")
-      XCTAssert(playlist.ext_x_key.iv == nil)
-      
-      // #EXTINF
-      XCTAssert(playlist.extinf.count == 1461)
-      XCTAssert(playlist.extinf[0].duration == 2.048)
-      XCTAssert(playlist.extinf[0].title == nil)
-      
-      // URI
-      XCTAssert(playlist.uris.count == 1461)
-      XCTAssert(playlist.uris[0] == "/22001/vod/dyn/f24d38bc60a411ec88b4005056a5d12f/sample/v0200000001.ts")
-      XCTAssert(playlist.uris[2] == "/22001/vod/dyn/f24d38bc60a411ec88b4005056a5d12f/sample/v0200000003.ts")
-      
-      // Media segments
-      XCTAssert(playlist.mediaSegments.count == 1461)
-      
-      XCTAssert(playlist.ext_x_endlist)
-    }
-    catch {
-      XCTFail(error.description)
-    }
+  func test_playlist() throws {
+    let playlist = try M3U8Decoder().decode(VideoPlaylist.self, from: Self.videoPlaylistUrl)
+    print(playlist)
+    
+    XCTAssert(playlist.extm3u)
+    XCTAssert(playlist.ext_x_version == 7)
+    XCTAssert(playlist.ext_x_targetduration == 3)
+    XCTAssert(playlist.ext_x_playlist_type == "VOD")
+    
+    // #EXT-X-KEY
+    XCTAssert(playlist.ext_x_key.method == "SAMPLE-AES")
+    XCTAssert(playlist.ext_x_key.keyformat == "com.apple.streamingkeydelivery")
+    XCTAssert(playlist.ext_x_key.keyformatversions == "1")
+    XCTAssert(playlist.ext_x_key.uri == "skd://p-drmfp-vod.movetv.com/fairplay/d1acadbf70824d178601c2e55675b3b3")
+    XCTAssert(playlist.ext_x_key.iv == nil)
+    
+    // #EXTINF
+    XCTAssert(playlist.extinf.count == 1461)
+    XCTAssert(playlist.extinf[0].duration == 2.048)
+    XCTAssert(playlist.extinf[0].title == nil)
+    
+    // URI
+    XCTAssert(playlist.uris.count == 1461)
+    XCTAssert(playlist.uris[0] == "/22001/vod/dyn/f24d38bc60a411ec88b4005056a5d12f/sample/v0200000001.ts")
+    XCTAssert(playlist.uris[2] == "/22001/vod/dyn/f24d38bc60a411ec88b4005056a5d12f/sample/v0200000003.ts")
+    
+    // Media segments
+    XCTAssert(playlist.mediaSegments.count == 1461)
+    
+    XCTAssert(playlist.ext_x_endlist)
   }
 }
 
