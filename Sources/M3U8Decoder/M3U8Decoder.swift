@@ -276,11 +276,6 @@ public class M3U8Decoder {
         return
       }
       
-      guard let response = response as? HTTPURLResponse, response.statusCode == 200 else {
-        completion(.failure(URLError(.badServerResponse)))
-        return
-      }
-      
       do {
         precondition(data != nil)
         let playlist = try self.decode(type, from: data!)

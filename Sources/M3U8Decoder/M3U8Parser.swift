@@ -149,72 +149,65 @@ class M3U8Parser {
     var keyValues = [String : Any]()
     let range = NSRange(location: 0, length: value.utf16.count)
     
-    switch name {
-      // #EXTINF:<duration>,[<title>]
-      case "EXTINF":
-        if let match = Self.regexExtInf.matches(in: value, options: [], range: range).first,
-           match.numberOfRanges == 3,
-           let durationRange = Range(match.range(at: 1), in: value),
-           let titleRange = Range(match.range(at: 2), in: value)
-        {
-          let duration = String(value[durationRange])
-          keyValues["duration"] = self.convertType(text: duration)
-          
-          let title = String(value[titleRange])
-          if title.isEmpty == false {
-            keyValues["title"] = title
-          }
-          
-          return .object(keyValues)
+    // #EXTINF:<duration>,[<title>]
+    if name == "EXTINF" {
+      if let match = Self.regexExtInf.matches(in: value, options: [], range: range).first,
+         match.numberOfRanges == 3,
+         let durationRange = Range(match.range(at: 1), in: value),
+         let titleRange = Range(match.range(at: 2), in: value)
+      {
+        let duration = String(value[durationRange])
+        keyValues["duration"] = self.convertType(text: duration)
+        
+        let title = String(value[titleRange])
+        if title.isEmpty == false {
+          keyValues["title"] = title
         }
         
-      // #EXT-X-BYTERANGE:<n>[@<o>]
-      case "EXT-X-BYTERANGE":
-        fallthrough
-      case "BYTERANGE":
-        if let match = Self.regexByterange.matches(in: value, options: [], range: range).first,
-           match.numberOfRanges == 3,
-           let lengthRange = Range(match.range(at: 1), in: value),
-           let startRange = Range(match.range(at: 2), in: value)
-        {
-          let length = String(value[lengthRange])
-          keyValues["length"] = self.convertType(text: length)
-          
-          let start = String(value[startRange])
-          if start.isEmpty == false {
-            keyValues["start"] = self.convertType(text:start)
-          }
-          
-          return .object(keyValues)
-        }
-        
-      // #RESOLUTION=<width>x<height>
-      case "RESOLUTION":
-        let matches = Self.regexResolution.matches(in: value, options: [], range: range)
-        if let match = matches.first, match.numberOfRanges == 3,
-           let widthRange = Range(match.range(at: 1), in: value),
-           let heightRange = Range(match.range(at: 2), in: value)
-        {
-          let width = String(value[widthRange])
-          keyValues["width"] = self.convertType(text: width)
-          
-          let height = String(value[heightRange])
-          keyValues["height"] = self.convertType(text:height)
-          
-          return .object(keyValues)
-        }
-        
-      // CODECS="codec1,codec2,..."
-      case "CODECS":
-        let array = value
-          .trimmingCharacters(in: .quotes)
-          .components(separatedBy: ",")
-        return .other(array)
-        
-      default:
-        return .none
+        return .object(keyValues)
+      }
     }
-    
+    // #EXT-X-BYTERANGE:<n>[@<o>]
+    else if name == "EXT-X-BYTERANGE" || name == "BYTERANGE" {
+      if let match = Self.regexByterange.matches(in: value, options: [], range: range).first,
+         match.numberOfRanges == 3,
+         let lengthRange = Range(match.range(at: 1), in: value),
+         let startRange = Range(match.range(at: 2), in: value)
+      {
+        let length = String(value[lengthRange])
+        keyValues["length"] = self.convertType(text: length)
+        
+        let start = String(value[startRange])
+        if start.isEmpty == false {
+          keyValues["start"] = self.convertType(text:start)
+        }
+        
+        return .object(keyValues)
+      }
+    }
+    // #RESOLUTION=<width>x<height>
+    else if name == "RESOLUTION" {
+      let matches = Self.regexResolution.matches(in: value, options: [], range: range)
+      if let match = matches.first, match.numberOfRanges == 3,
+         let widthRange = Range(match.range(at: 1), in: value),
+         let heightRange = Range(match.range(at: 2), in: value)
+      {
+        let width = String(value[widthRange])
+        keyValues["width"] = self.convertType(text: width)
+        
+        let height = String(value[heightRange])
+        keyValues["height"] = self.convertType(text:height)
+        
+        return .object(keyValues)
+      }
+    }
+    // CODECS="codec1,codec2,..."
+    else if name == "CODECS" {
+      let array = value
+        .trimmingCharacters(in: .quotes)
+        .components(separatedBy: ",")
+      return .other(array)
+    }
     return .none
   }
   

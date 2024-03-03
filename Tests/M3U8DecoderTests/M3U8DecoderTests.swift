@@ -775,33 +775,20 @@ final class M3U8Tests_URL: XCTestCase {
     XCTAssert(playlist.variantStreams.count == 24)
   }
   
-  func test_url_error() {
+  func test_url_error_unsupported() {
     wait { expectation in
-      M3U8Decoder().decode(MasterPlaylist.self, from: URL(string: "https://domain.com/playlist.m3u8")!) { result in
+      M3U8Decoder().decode(MasterPlaylist.self, from: URL(string: "domain.com")!) { result in
         if case let .failure(error) = result {
-          let error = error as NSError
-          XCTAssert(error.domain == NSURLErrorDomain)
-          XCTAssert(error.code == -1011)
+          XCTAssert(error.localizedDescription == "unsupported URL")
           expectation.fulfill()
         }
       }
     }
   }
   
-  func test_url_error_404() {
+  func test_url_error_not_playlist() {
     wait { expectation in
       M3U8Decoder().decode(MasterPlaylist.self, from: URL(string: "https://google.com/playlist.m3u8")!) { result in
-        if case let .failure(error) = result {
-          XCTAssert(error.localizedDescription.hasPrefix("The operation couldn’t be completed.") == true)
-          expectation.fulfill()
-        }
-      }
-    }
-  }
-  
-  func test_url_error_baddata() {
-    wait { expectation in
-      M3U8Decoder().decode(MasterPlaylist.self, from: URL(string: "https://google.com")!) { result in
         if case let .failure(error) = result {
           XCTAssert(error.localizedDescription == "Not the Playlist.")
           expectation.fulfill()
@@ -817,7 +804,7 @@ final class M3U8Tests_URL: XCTestCase {
           let _ = try await M3U8Decoder().decode(MasterPlaylist.self, from: URL(string: "https://google.com/playlist.m3u8")!)
         }
         catch {
-          XCTAssert(error.localizedDescription.hasPrefix("The operation couldn’t be completed.") == true)
+          XCTAssert(error.localizedDescription == "Not the Playlist.")
           expectation.fulfill()
         }
       }
