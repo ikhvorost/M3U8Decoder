@@ -114,8 +114,7 @@ class M3U8Parser {
       }
       // URI
       else {
-        let uri = line.trimmingCharacters(in: .whitespaces)
-        uris.append(uri)
+        uris.append(line)
       }
     }
     
@@ -220,15 +219,19 @@ class M3U8Parser {
   }
   
   private func parse(attributes: String, keyValues: inout [String : Any]) {
-    let range = NSRange(location: 0, length: attributes.utf16.count)
-    Self.regexAttributes.matches(in: attributes, options: [], range: range).forEach {
+    let text = attributes.contains(#"\""#)
+      ? attributes.replacingOccurrences(of: #"\""#, with: "'")
+      : attributes
+    
+    let range = NSRange(location: 0, length: text.utf16.count)
+    Self.regexAttributes.matches(in: text, options: [], range: range).forEach {
       guard $0.numberOfRanges >= 3 else { return }
       
-      let keyRange = Range($0.range(at: 1), in: attributes)!
-      let name = String(attributes[keyRange])
+      let keyRange = Range($0.range(at: 1), in: text)!
+      let name = String(text[keyRange])
       
-      let valueRange = Range($0.range(at: 2), in: attributes)!
-      let value = String(attributes[valueRange])
+      let valueRange = Range($0.range(at: 2), in: text)!
+      let value = String(text[valueRange])
       
       switch parse(name: name, value: value) {
         case let .object(object):

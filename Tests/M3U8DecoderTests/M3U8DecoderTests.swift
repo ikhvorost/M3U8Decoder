@@ -80,7 +80,8 @@ final class M3U8_All: XCTestCase {
       segment-0.mp4
       
       #     comment 3
-      ## comment 4
+      ## Created with Unified Streaming Platform(version=1.8.4)
+      #USP-X-TIMESTAMP-MAP:MPEGTS=3013867424,LOCAL=2024-02-24T08:12:35.200000Z
       #EXTINF:10
          segment-1.mp4
       """
@@ -99,23 +100,41 @@ final class M3U8_All: XCTestCase {
     XCTAssert(playlist.uris[0] == "segment-0.mp4")
     XCTAssert(playlist.uris[1] == "segment-1.mp4")
     
-    XCTAssert(playlist.comments.count == 4)
+    XCTAssert(playlist.comments.count == 5)
     XCTAssert(playlist.comments[0] == "comment 1")
     XCTAssert(playlist.comments[1] == "comment 2")
     XCTAssert(playlist.comments[2] == "comment 3")
-    XCTAssert(playlist.comments[3] == "comment 4")
+    XCTAssert(playlist.comments[3] == "Created with Unified Streaming Platform(version=1.8.4)")
+    XCTAssert(playlist.comments[4] == "USP-X-TIMESTAMP-MAP:MPEGTS=3013867424,LOCAL=2024-02-24T08:12:35.200000Z")
   }
   
-  func test_double_attributes() throws {
+  func test_attributes() throws {
     let text =
-      """
+      #"""
       #EXTM3U
       #EXT-X-VERSION:7
       #EXT-X-MAP:URI="main1.mp4",BYTERANGE="1118@0",URI="main2.mp4"
-      """
+      
+      #EXTINF:10,"The Ben Maller Show",b=100,c="zc4732"
+      https://n0ab-e2.revma.ihrhls.com/zc4732/10_sz0pexjzvq8g02/main/171115542.aac
+      
+      #EXTINF:11,title="Law Office Of Michael S Lamonsoff*Power Only*",artist="Angie Martinez",url="song_spot=\"T\" MediaBaseId=\"-1\" itunesTrackId=\"0\" amgTrackId=\"-1\" amgArtistId=\"0\" TAID=\"-1\" TPID=\"-1\" cartcutId=\"8003384001\" amgArtworkURL=\"\" length=\"00:00:58\" unsID=\"-1\" spotInstanceId=\"46787245\""
+      http://cdn-chunks.prod.ihrhls.com/1481/4qgsCGy7Amkp-154241599-10031.aac
+      
+      #EXTINF:12,title="The Ben Maller Show",artist="zc4732",url="song_spot=\"T\" spotInstanceId=\"-1\" length=\"04:00:00\" MediaBaseId=\"\" TAID=\"0\" TPID=\"0\" cartcutId=\"\" amgArtworkURL=\"https://storage.googleapis.com/portal-content.zettacloud.appspot.com/shows/cff92185-5e92-11ec-9478-8bbc72f158cb/logo\" spEventID=\"01f47968-ccac-11ee-a9cf-f50937f44113\" "
+      https://n0ab-e2.revma.ihrhls.com/zc4732/10_sz0pexjzvq8g02/main/171115542.aac
+      """#
+    
+    struct CustomExtInf: Decodable {
+      let duration: Double
+      let title: String
+      let artist: String?
+      let url: String?
+    }
     
     struct Playlist: Decodable {
       let ext_x_map: EXT_X_MAP
+      let extinf: [CustomExtInf]
     }
     
     let playlist = try M3U8Decoder().decode(Playlist.self, from: text)
@@ -123,6 +142,23 @@ final class M3U8_All: XCTestCase {
     XCTAssert(playlist.ext_x_map.byterange?.length == 1118)
     XCTAssert(playlist.ext_x_map.byterange?.start == 0)
     XCTAssert(playlist.ext_x_map.uri == "main2.mp4")
+    
+    XCTAssert(playlist.extinf.count == 3)
+    
+    XCTAssert(playlist.extinf[0].duration == 10)
+    XCTAssert(playlist.extinf[0].title == "\"The Ben Maller Show\",b=100,c=\"zc4732\"")
+    XCTAssert(playlist.extinf[0].artist == nil)
+    XCTAssert(playlist.extinf[0].url == nil)
+    
+    XCTAssert(playlist.extinf[1].duration == 11)
+    XCTAssert(playlist.extinf[1].title == "Law Office Of Michael S Lamonsoff*Power Only*")
+    XCTAssert(playlist.extinf[1].artist == "Angie Martinez")
+    XCTAssert(playlist.extinf[1].url?.contains("46787245") == true)
+    
+    XCTAssert(playlist.extinf[2].duration == 12)
+    XCTAssert(playlist.extinf[2].title == "The Ben Maller Show")
+    XCTAssert(playlist.extinf[2].artist == "zc4732")
+    XCTAssert(playlist.extinf[2].url?.contains("01f47968-ccac-11ee-a9cf-f50937f44113") == true)
   }
   
   func test_custom_tags() throws {
@@ -168,6 +204,7 @@ final class M3U8_All: XCTestCase {
       let ext_custom_tag2: CustomAttributes
       let ext_custom_array: [Int]
       let extinf: [CustomExtInf]
+      let uris: [String]
     }
     
     let playlist = try M3U8Decoder().decode(CustomPlaylist.self, from: text)
@@ -181,7 +218,11 @@ final class M3U8_All: XCTestCase {
     XCTAssert(playlist.ext_custom_array.count == 3)
     XCTAssert(playlist.ext_custom_array == [1, 2, 3])
     
+    XCTAssert(playlist.uris.count == 1)
+    XCTAssert(playlist.uris[0] == "main.mp4")
+    
     // EXTINF
+    XCTAssert(playlist.extinf.count == 1)
     XCTAssert(playlist.extinf[0].duration == 10)
     XCTAssert(playlist.extinf[0].title == "Dark Horse")
     XCTAssert(playlist.extinf[0].artist == "Katy Perry / Juicy J")
