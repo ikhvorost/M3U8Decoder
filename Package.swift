@@ -7,9 +7,9 @@ let package = Package(
   name: "M3U8Decoder",
   platforms: [
     .iOS(.v13),
-    .macOS(.v10_14),
+    .macOS(.v10_15),
     .tvOS(.v13),
-    .watchOS(.v5)
+    .watchOS(.v6)
   ],
   products: [
     .library(
