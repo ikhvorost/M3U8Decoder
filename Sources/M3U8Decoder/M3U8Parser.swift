@@ -48,14 +48,6 @@ fileprivate enum Line {
   case none
 }
 
-public enum M3U8Error: String, LocalizedError {
-  case notPlaylist = "Not Extended M3U Playlist file."
-  
-  public var errorDescription: String? {
-    self.rawValue
-  }
-}
-
 class M3U8Parser {
   private static let regexExtTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
   private static let regexAttributes = try! NSRegularExpression(pattern: "([^=,\\s]+)=((\"([^\"]+)\")|([^,]+))")
@@ -119,17 +111,18 @@ class M3U8Parser {
     return dict
   }
   
-  static func parse(text: String) throws -> [String : Any] {
+  static func parse(string: String) throws -> [String : Any] {
     var lines = [String]()
-    text.enumerateLines { line, _ in
+    string.enumerateLines { line, _ in
       if !line.isEmpty {
-        lines.append(line.trimmingCharacters(in: .whitespaces))
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        lines.append(trimmed)
       }
     }
     
-    // #EXTM3U
+    // Validate: #EXTM3U
     guard lines.first == "#EXTM3U" else {
-      throw M3U8Error.notPlaylist
+      throw M3U8Decoder.Error.notPlaylist
     }
     
     var items = [Line](repeating: .none, count: lines.count)

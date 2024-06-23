@@ -24,10 +24,7 @@
 
 import Foundation
 
-extension String : LocalizedError {
-  /// A localized message describing what error occurred.
-  public var errorDescription: String? { return self }
-  
+fileprivate extension String {
   var camelCased: String {
     self.split(separator: "-")
       .reduce("", { $0 + ($0.isEmpty ? String($1) : $1.capitalized) })
@@ -48,7 +45,7 @@ fileprivate extension DateFormatter {
   }()
 }
 
-/// An implementation of CodingKey that's useful for combining and transforming keys as strings.
+// An implementation of CodingKey that's useful for combining and transforming keys as strings.
 fileprivate struct AnyKey: CodingKey {
   var stringValue: String
   var intValue: Int?
@@ -178,6 +175,16 @@ public class M3U8Decoder {
   /// The strategy to use in decoding binary data. Defaults to `.hex`.
   public var dataDecodingStrategy: DataDecodingStrategy = .hex
   
+  public enum Error: String, LocalizedError {
+    case notPlaylist = "Not Extended M3U Playlist file."
+    
+    case badData = "Bad data."
+    
+    public var errorDescription: String? {
+      self.rawValue
+    }
+  }
+  
   /// Creates a new, reusable Media Playlist decoder with the default formatting settings and decoding strategies.
   public init() {}
   
@@ -219,11 +226,8 @@ public class M3U8Decoder {
   ///    - text: The text to decode from.
   /// - Returns: A value of the requested type.
   /// - Throws: An error if any value throws an error during decoding.
-  public func decode<T: Decodable>(_ type: T.Type, from text: String) throws -> T {
-    guard text.isEmpty == false else {
-      throw "Empty data."
-    }
-    let dict = try M3U8Parser.parse(text: text)
+  public func decode<T: Decodable>(_ type: T.Type, from string: String) throws -> T {
+    let dict = try M3U8Parser.parse(string: string)
     let data = try JSONSerialization.data(withJSONObject: dict)
     return try decoder.decode(type, from: data)
   }
@@ -239,7 +243,7 @@ public class M3U8Decoder {
   /// - Throws: An error if any value throws an error during decoding.
   public func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
     guard let text = String(data: data, encoding: .utf8) else {
-      throw "Bad data."
+      throw Error.badData
     }
     return try decode(type, from: text)
   }

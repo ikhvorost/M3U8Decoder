@@ -3,11 +3,6 @@ import Combine
 /*@testable*/ import M3U8Decoder
 
 
-extension Error {
-  var description: String { (self as NSError).description }
-}
-
-// https://datatracker.ietf.org/doc/html/draft-pantos-http-live-streaming-23#section-8
 final class M3U8_All: XCTestCase {
   
   func test_error_empty() {
@@ -15,7 +10,7 @@ final class M3U8_All: XCTestCase {
       let extm3u: Bool
     }
     XCTAssertThrowsError(try M3U8Decoder().decode(Playlist.self, from: "")) {
-      XCTAssert($0.localizedDescription == "Empty data.")
+      XCTAssert($0 as! M3U8Decoder.Error == .notPlaylist)
     }
   }
   
@@ -24,7 +19,7 @@ final class M3U8_All: XCTestCase {
       let extm3u: Bool
     }
     XCTAssertThrowsError(try M3U8Decoder().decode(Playlist.self, from: Data([255, 255, 255]))) {
-      XCTAssert($0.localizedDescription == "Bad data.")
+      XCTAssert($0 as! M3U8Decoder.Error == .badData)
     }
   }
   
@@ -41,8 +36,7 @@ final class M3U8_All: XCTestCase {
     }
     
     XCTAssertThrowsError(try M3U8Decoder().decode(Playlist.self, from: text)) {
-      let error = $0 as! M3U8Error
-      XCTAssert(error == M3U8Error.notPlaylist)
+      XCTAssert($0 as! M3U8Decoder.Error == .notPlaylist)
     }
   }
   
@@ -701,7 +695,7 @@ final class M3U8Tests_File: XCTestCase {
     XCTAssert(playlist.ext_x_endlist)
   }
   
-  func test_large() throws {
+  func test_large_playlist() throws {
     struct VideoPlaylist: Decodable {
       let extm3u: Bool
       let extinf: [EXTINF]
@@ -718,7 +712,11 @@ final class M3U8Tests_File: XCTestCase {
     XCTAssert(timeout < 3.0)
   
     XCTAssert(playlist.extinf.count == 194918)
+    XCTAssert(playlist.extinf[1].duration == -1)
+    XCTAssert(playlist.extinf[1].title == "TR | ● TRT 4K UHD")
+    
     XCTAssert(playlist.uris.count == 194918)
+    XCTAssert(playlist.uris[1] == "http://ios.liveurl.xyz:8080/username/password/138426")
   }
 }
 
@@ -803,11 +801,8 @@ final class M3U8Tests_URL: XCTestCase {
     do {
       _ = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.mpdURL)
     }
-    catch let error as M3U8Error {
-      XCTAssert(error == M3U8Error.notPlaylist)
-    }
     catch {
-      XCTFail()
+      XCTAssert(error as! M3U8Decoder.Error == .notPlaylist)
     }
   }
   
@@ -864,7 +859,8 @@ final class M3U8Tests_URL: XCTestCase {
     let masterPlaylist = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.bipbopURL)
     
     guard let uri = masterPlaylist.uris.first else {
-      throw  "No video variant"
+      XCTFail("No video variant")
+      return
     }
     
     let url = Self.bipbopURL.deletingLastPathComponent().appendingPathComponent(uri)
