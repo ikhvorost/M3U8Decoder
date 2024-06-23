@@ -41,6 +41,21 @@ fileprivate enum ParseResult {
   case none
 }
 
+fileprivate enum Line {
+  case tag(String, Any)
+  case comment(String)
+  case uri(String)
+  case none
+}
+
+public enum M3U8Error: String, LocalizedError {
+  case notPlaylist = "Not Extended M3U Playlist file."
+  
+  public var errorDescription: String? {
+    self.rawValue
+  }
+}
+
 class M3U8Parser {
   private static let regexExtTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
   private static let regexAttributes = try! NSRegularExpression(pattern: "([^=,\\s]+)=((\"([^\"]+)\")|([^,]+))")
@@ -54,67 +69,42 @@ class M3U8Parser {
     "EXT-X-MEDIA", "EXT-X-STREAM-INF", "EXT-X-I-FRAME-STREAM-INF" // Master playlist
   ]
   
-  func parse(text: String) throws -> [String : Any] {
+  private static func jsonDict(items: [Line]) throws -> [String : Any] {
     var dict = [String : Any]()
     var comments = [String]()
     var uris = [String]()
     
-    let items = text.components(separatedBy: .newlines)
-    for i in 0..<items.count {
-      let line = items[i].trimmingCharacters(in: .whitespaces)
-      
-      // Skip empty lines
-      guard !line.isEmpty else {
-        continue
-      }
-      
-      // #EXTM3U
-      guard !dict.isEmpty || line == "#EXTM3U" else {
-        throw "Not the Playlist."
-      }
-      
-      // #EXT
-      if line.hasPrefix("#EXT") {
-        let range = NSRange(location: 0, length: line.utf16.count)
-        Self.regexExtTag.matches(in: line, options: [], range: range).forEach {
-          if let tagRange = Range($0.range(at: 1), in: text),
-             let attributesRange = Range($0.range(at: 2), in: line)
-          {
-            let tag = String(line[tagRange])
-            let attributes = String(line[attributesRange])
-            
-            let value = parse(tag: tag, attributes: attributes)
-            
-            if let item = dict[tag] {
-              if var items = item as? [Any] {
-                items.append(value)
-                dict[tag] = items
-              }
-              else {
-                dict[tag] = [item, value]
-              }
+    items.forEach { line in
+      switch line {
+        case .tag(let tag, let value):
+          if let item = dict[tag] {
+            if let items = item as? NSMutableArray {
+              items.add(value)
             }
             else {
-              if Self.arrayTags.contains(tag) {
-                dict[tag] = [value]
-              }
-              else {
-                dict[tag] = value
-              }
+              dict[tag] = NSMutableArray(objects: item, value)
             }
           }
-        }
-      }
-      // Comments
-      else if line.hasPrefix("#") {
-        let comment = line
-          .trimmingCharacters(in: .hashes)
-          .trimmingCharacters(in: .whitespaces)
-        comments.append(comment)
-      }
-      // URI
-      else {
-        uris.append(line)
+          else {
+            if Self.arrayTags.contains(tag) {
+              dict[tag] = NSMutableArray(object: value)
+            }
+            else {
+              dict[tag] = value
+            }
+          }
+          break
+          
+        case .comment(let comment):
+          comments.append(comment)
+          break
+          
+        case .uri(let uri):
+          uris.append(uri)
+          break
+          
+        case .none:
+          break
       }
     }
     
@@ -129,7 +119,65 @@ class M3U8Parser {
     return dict
   }
   
-  private func convertType(text: String) -> Any {
+  static func parse(text: String) throws -> [String : Any] {
+    var lines = [String]()
+    text.enumerateLines { line, _ in
+      if !line.isEmpty {
+        lines.append(line.trimmingCharacters(in: .whitespaces))
+      }
+    }
+    
+    // #EXTM3U
+    guard lines.first == "#EXTM3U" else {
+      throw M3U8Error.notPlaylist
+    }
+    
+    var items = [Line](repeating: .none, count: lines.count)
+    
+    let group = DispatchGroup()
+    
+    lines
+      .enumerated()
+      .forEach { i, line in
+        group.enter()
+        DispatchQueue.global().async {
+          items[i] = parse(line: line)
+          group.leave()
+        }
+      }
+    
+    group.wait()
+    
+    return try jsonDict(items: items)
+  }
+  
+  private static func parse(line: String) -> Line {
+    // #EXT
+    if line.hasPrefix("#EXT") {
+      let range = NSRange(location: 0, length: line.utf16.count)
+      if let match = Self.regexExtTag.matches(in: line, options: [], range: range).first,
+         let tagRange = Range(match.range(at: 1), in: line),
+         let attributesRange = Range(match.range(at: 2), in: line)
+      {
+        let tag = String(line[tagRange])
+        let attributes = String(line[attributesRange])
+        
+        let value = parse(tag: tag, attributes: attributes)
+        return .tag(tag, value)
+      }
+    }
+    // Comments
+    else if line.hasPrefix("#") {
+      let text = line
+        .trimmingCharacters(in: .hashes)
+        .trimmingCharacters(in: .whitespaces)
+      return .comment(text)
+    }
+    // URI
+    return .uri(line)
+  }
+  
+  private static func convertType(text: String) -> Any {
     // Skip quoted strings or hex
     guard text.hasPrefix("\"") == false, text.hasPrefix("0x") == false, text.hasPrefix("0X") == false else {
       return text.trimmingCharacters(in: .quotes)
@@ -145,7 +193,7 @@ class M3U8Parser {
     return text
   }
   
-  private func parse(name: String, value: String) -> ParseResult {
+  private static func parse(name: String, value: String) -> ParseResult {
     var keyValues = [String : Any]()
     let range = NSRange(location: 0, length: value.utf16.count)
     
@@ -211,7 +259,7 @@ class M3U8Parser {
     return .none
   }
   
-  private func parse(attributes: String, keyValues: inout [String : Any]) {
+  private static func parse(attributes: String, keyValues: inout [String : Any]) {
     let text = attributes.contains(#"\""#)
       ? attributes.replacingOccurrences(of: #"\""#, with: "'")
       : attributes
@@ -237,7 +285,7 @@ class M3U8Parser {
     }
   }
   
-  private func parse(tag: String, attributes: String) -> Any {
+  private static func parse(tag: String, attributes: String) -> Any {
     // Bool tag
     guard attributes.isEmpty == false else {
       return true

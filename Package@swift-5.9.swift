@@ -25,8 +25,7 @@ let package = Package(
       name: "M3U8DecoderTests",
       dependencies: ["M3U8Decoder"],
       resources: [
-        .copy("Resources/master_7_3_fairplay.m3u8"),
-        .copy("Resources/video_7_02_3_fairplay.m3u8"),
+        .copy("m3u8"),
       ]
     ),
   ],

@@ -106,7 +106,7 @@ fileprivate extension JSONDecoder.DataDecodingStrategy {
 }
 
 /// An object that decodes instances of a data and string types from Media Playlist text
-/// format (https://datatracker.ietf.org/doc/html/rfc8216).
+/// format: https://datatracker.ietf.org/doc/html/rfc8216.
 ///
 /// The example below shows how to decode an instance of a simple Playlist type
 /// from a text of Media Playlist format.
@@ -181,24 +181,7 @@ public class M3U8Decoder {
   /// Creates a new, reusable Media Playlist decoder with the default formatting settings and decoding strategies.
   public init() {}
   
-  /// Returns a value of the type you specify, decoded from Media Playlist text.
-  ///
-  /// If the text isn’t valid Media Playlist or fails to decode this method throws the corresponding error.
-  ///
-  /// - Parameters:
-  ///    - type: The type of the value to decode.
-  ///    - text: The text to decode from.
-  /// - Returns: A value of the requested type.
-  /// - Throws: An error if any value throws an error during decoding.
-  public func decode<T>(_ type: T.Type, from text: String) throws -> T where T : Decodable {
-    let parser = M3U8Parser()
-    
-    guard text.isEmpty == false else {
-      throw "Empty data."
-    }
-    
-    let dict = try parser.parse(text: text)
-    
+  private var decoder: JSONDecoder {
     let decoder = JSONDecoder()
     
     // Date
@@ -224,9 +207,25 @@ public class M3U8Decoder {
       case .base64:
         decoder.dataDecodingStrategy = .base64
     }
-    
-    let jsonData = try JSONSerialization.data(withJSONObject: dict)
-    return try decoder.decode(type, from: jsonData)
+    return decoder
+  }
+  
+  /// Returns a value of the type you specify, decoded from Media Playlist text.
+  ///
+  /// If the text isn’t valid Media Playlist or fails to decode this method throws the corresponding error.
+  ///
+  /// - Parameters:
+  ///    - type: The type of the value to decode.
+  ///    - text: The text to decode from.
+  /// - Returns: A value of the requested type.
+  /// - Throws: An error if any value throws an error during decoding.
+  public func decode<T: Decodable>(_ type: T.Type, from text: String) throws -> T {
+    guard text.isEmpty == false else {
+      throw "Empty data."
+    }
+    let dict = try M3U8Parser.parse(text: text)
+    let data = try JSONSerialization.data(withJSONObject: dict)
+    return try decoder.decode(type, from: data)
   }
   
   /// Returns a value of the type you specify, decoded from Media Playlist data.
@@ -238,7 +237,7 @@ public class M3U8Decoder {
   ///    - data: The data to decode from.
   /// - Returns: A value of the requested type.
   /// - Throws: An error if any value throws an error during decoding.
-  public func decode<T>(_ type: T.Type, from data: Data) throws -> T where T : Decodable {
+  public func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
     guard let text = String(data: data, encoding: .utf8) else {
       throw "Bad data."
     }
@@ -254,38 +253,9 @@ public class M3U8Decoder {
   ///    - url: The URL to decode from.
   /// - Returns: A value of the requested type.
   /// - Throws: An error if any value throws an error during decoding.
-  public func decode<T>(_ type: T.Type, from url: URL) throws -> T where T : Decodable {
-    let data = try Data(contentsOf: url)
-    return try decode(type, from: data)
-  }
-  
-  /// Creates a task that decodes the contents of a Media Playlist URL, and calls a handler upon completion.
-  ///
-  /// If the contents from the URL isn’t valid Media Playlist or fails to decode
-  /// a corresponding error will be provided to the completion handler.
-  ///
-  /// - Parameters:
-  ///    - type: The type of the value to decode.
-  ///    - url: The URL to decode from.
-  ///    - completion: The completion handler to call when the decoding is complete.
-  public func decode<T>(_ type: T.Type, from url: URL, _ completion: @escaping (Result<T, Error>) -> Void) where T : Decodable {
-    let request = URLRequest(url: url)
-    URLSession.shared.dataTask(with: request) { data, response, error in
-      guard error == nil else {
-        completion(.failure(error!))
-        return
-      }
-      
-      do {
-        precondition(data != nil)
-        let playlist = try self.decode(type, from: data!)
-        completion(.success(playlist))
-      }
-      catch {
-        completion(.failure(error))
-      }
-    }
-    .resume()
+  public func decode<T: Decodable>(_ type: T.Type, from url: URL) throws -> T {
+    let text = try String(contentsOf: url)
+    return try decode(type, from: text)
   }
   
   /// Delivers a value of the type you specify asynchronously, decoded from contents of a Media Playlist URL.
@@ -296,18 +266,10 @@ public class M3U8Decoder {
   ///    - type: The type of the value to decode.
   ///    - url: The URL to decode from.
   /// - Returns: A value of the requested type.
-  @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
-  public func decode<T>(_ type: T.Type, from url: URL) async throws -> T where T : Decodable {
-    try await withCheckedThrowingContinuation { continuation in
-      decode(type, from: url) { result in
-        switch result {
-          case let .success(playlist):
-            continuation.resume(returning: playlist)
-          case let .failure(error):
-            continuation.resume(throwing: error)
-        }
-      }
-    }
+  public func decode<T: Decodable>(_ type: T.Type, from url: URL) async throws -> T {
+    let request = URLRequest(url: url)
+    let (data, _) = try await URLSession.shared.data(for: request)
+    return try decode(type, from: data)
   }
 }
 
@@ -315,7 +277,6 @@ public class M3U8Decoder {
 
 import protocol Combine.TopLevelDecoder
 
-@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension M3U8Decoder: TopLevelDecoder {
   /// The type this decoder accepts.
   public typealias Input = Data

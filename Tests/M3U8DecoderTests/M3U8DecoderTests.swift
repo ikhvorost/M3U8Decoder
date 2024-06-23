@@ -7,14 +7,6 @@ extension Error {
   var description: String { (self as NSError).description }
 }
 
-extension XCTestCase {
-  func wait(_f: String = #function, _ body: (XCTestExpectation) -> Void)  {
-    let expectation = expectation(description: #function)
-    body(expectation)
-    waitForExpectations(timeout: 3)
-  }
-}
-
 // https://datatracker.ietf.org/doc/html/draft-pantos-http-live-streaming-23#section-8
 final class M3U8_All: XCTestCase {
   
@@ -49,7 +41,8 @@ final class M3U8_All: XCTestCase {
     }
     
     XCTAssertThrowsError(try M3U8Decoder().decode(Playlist.self, from: text)) {
-      XCTAssert($0.localizedDescription == "Not the Playlist.")
+      let error = $0 as! M3U8Error
+      XCTAssert(error == M3U8Error.notPlaylist)
     }
   }
   
@@ -70,7 +63,6 @@ final class M3U8_All: XCTestCase {
   func test_default() throws {
     let text =
       """
-        
        #EXTM3U
       #comment 1
       #EXT-X-VERSION:7
@@ -572,11 +564,12 @@ final class M3U8Tests_File: XCTestCase {
     }
   }
   
-  static let masterPlaylistUrl = Bundle.module.url(forResource: "master_7_3_fairplay", withExtension: "m3u8")!
-  static let videoPlaylistUrl = Bundle.module.url(forResource: "video_7_02_3_fairplay", withExtension: "m3u8")!
+  static let masterUrl = Bundle.module.url(forResource: "m3u8/master_7_3_fairplay", withExtension: "m3u8")!
+  static let videoUrl = Bundle.module.url(forResource: "m3u8/video_7_02_3_fairplay", withExtension: "m3u8")!
+  static let compressedLargeURL = Bundle.module.url(forResource: "m3u8/tv_channels_private.m3u", withExtension: "zlib")!
   
   func test_master() throws {
-    let playlist = try M3U8Decoder().decode(MasterPlaylist.self, from: Self.masterPlaylistUrl)
+    let playlist = try M3U8Decoder().decode(MasterPlaylist.self, from: Self.masterUrl)
     print(playlist)
     
     XCTAssert(playlist.extm3u)
@@ -659,7 +652,7 @@ final class M3U8Tests_File: XCTestCase {
   func test_master_camelCase() throws {
     let decoder = M3U8Decoder()
     decoder.keyDecodingStrategy = .camelCase
-    let playlist = try decoder.decode(MasterPlaylistCamelCase.self, from: Self.masterPlaylistUrl)
+    let playlist = try decoder.decode(MasterPlaylistCamelCase.self, from: Self.masterUrl)
     print(playlist)
   }
   
@@ -672,12 +665,12 @@ final class M3U8Tests_File: XCTestCase {
         .replacingOccurrences(of: "-x-", with: "")
         .replacingOccurrences(of: "-", with: "_")
     }
-    let playlist = try decoder.decode(MasterPlaylistCustomKey.self, from: Self.masterPlaylistUrl)
+    let playlist = try decoder.decode(MasterPlaylistCustomKey.self, from: Self.masterUrl)
     print(playlist)
   }
   
   func test_playlist() throws {
-    let playlist = try M3U8Decoder().decode(VideoPlaylist.self, from: Self.videoPlaylistUrl)
+    let playlist = try M3U8Decoder().decode(VideoPlaylist.self, from: Self.videoUrl)
     print(playlist)
     
     XCTAssert(playlist.extm3u)
@@ -707,11 +700,33 @@ final class M3U8Tests_File: XCTestCase {
     
     XCTAssert(playlist.ext_x_endlist)
   }
+  
+  func test_large() throws {
+    struct VideoPlaylist: Decodable {
+      let extm3u: Bool
+      let extinf: [EXTINF]
+      let uris: [String]
+    }
+    
+    let compressed = try Data(contentsOf: Self.compressedLargeURL)
+    let data = try (compressed as NSData).decompressed(using: .zlib) as Data
+    
+    let start = Date()
+    let playlist = try M3U8Decoder().decode(VideoPlaylist.self, from: data)
+    let timeout = -start.timeIntervalSinceNow
+    print("Parsing time: \(timeout)")
+    XCTAssert(timeout < 3.0)
+  
+    XCTAssert(playlist.extinf.count == 194918)
+    XCTAssert(playlist.uris.count == 194918)
+  }
 }
 
 final class M3U8Tests_URL: XCTestCase {
   
   static let bipbopURL = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8")!
+  // https://bitdash-a.akamaihd.net/content/MI201109210084_1/m3u8s/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.m3u8
+  static let mpdURL = URL(string: "https://cdn.bitmovin.com/content/assets/art-of-motion-dash-hls-progressive/mpds/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.mpd")!
   
   struct MasterPlaylist: Decodable {
     let extm3u: Bool
@@ -775,84 +790,51 @@ final class M3U8Tests_URL: XCTestCase {
     XCTAssert(playlist.variantStreams.count == 24)
   }
   
-  func test_url_error_unsupported() {
-    wait { expectation in
-      M3U8Decoder().decode(MasterPlaylist.self, from: URL(string: "domain.com")!) { result in
-        if case let .failure(error) = result {
-          XCTAssert(error.localizedDescription == "unsupported URL")
-          expectation.fulfill()
-        }
-      }
+  func test_error_unsupported_url() async {
+    do {
+      _ = try await M3U8Decoder().decode(MasterPlaylist.self, from: URL(string: "domain.com")!)
+    }
+    catch {
+      XCTAssert(error.localizedDescription == "unsupported URL")
     }
   }
   
-  func test_url_error_not_playlist() {
-    wait { expectation in
-      M3U8Decoder().decode(MasterPlaylist.self, from: URL(string: "https://google.com/playlist.m3u8")!) { result in
-        if case let .failure(error) = result {
-          XCTAssert(error.localizedDescription == "Not the Playlist.")
-          expectation.fulfill()
-        }
-      }
+  func test_error_not_playlist() async {
+    do {
+      _ = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.mpdURL)
+    }
+    catch let error as M3U8Error {
+      XCTAssert(error == M3U8Error.notPlaylist)
+    }
+    catch {
+      XCTFail()
     }
   }
   
-  func test_url_error_async() {
-    wait { expectation in
-      Task {
-        do {
-          let _ = try await M3U8Decoder().decode(MasterPlaylist.self, from: URL(string: "https://google.com/playlist.m3u8")!)
-        }
-        catch {
-          XCTAssert(error.localizedDescription == "Not the Playlist.")
-          expectation.fulfill()
-        }
-      }
-    }
-  }
-  
-  func test_master_completion() {
-    wait { expectation in
-      M3U8Decoder().decode(MasterPlaylist.self, from: Self.bipbopURL) { result in
-        if case let .success(playlist) = result {
-          self.testMasterPlaylist(playlist)
-          expectation.fulfill()
-        }
-      }
-    }
-  }
-  
-  func test_master_async() {
-    wait { expectation in
-      Task {
-        do {
-          let playlist = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.bipbopURL)
-          self.testMasterPlaylist(playlist)
-          expectation.fulfill()
-        }
-        catch {
-          XCTFail(error.description)
-        }
-      }
-    }
+  func test_master() async throws {
+    let playlist = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.bipbopURL)
+    self.testMasterPlaylist(playlist)
   }
   
   var cancellable: Cancellable?
   
   // https://developer.apple.com/documentation/foundation/urlsession/processing_url_session_data_task_results_with_combine
   func test_master_combine() {
-    wait { expectation in
-      cancellable = URLSession.shared.dataTaskPublisher(for: Self.bipbopURL)
-        .map(\.data)
-        .decode(type: MasterPlaylist.self, decoder: M3U8Decoder())
-        .sink (
-          receiveCompletion: { print($0) },
-          receiveValue: { playlist in
-            self.testMasterPlaylist(playlist)
-            expectation.fulfill()
-          }
-        )
-    }
+    
+    let exp = expectation(description: #function)
+    
+    cancellable = URLSession.shared.dataTaskPublisher(for: Self.bipbopURL)
+      .map(\.data)
+      .decode(type: MasterPlaylist.self, decoder: M3U8Decoder())
+      .sink (
+        receiveCompletion: { print($0) },
+        receiveValue: { playlist in
+          self.testMasterPlaylist(playlist)
+          exp.fulfill()
+        }
+      )
+    
+    wait(for: [exp], timeout: 3.0)
   }
   
   struct VideoPlaylist: Decodable {
@@ -878,56 +860,45 @@ final class M3U8Tests_URL: XCTestCase {
     }
   }
   
-  func test_video_variant() {
-    wait { expectation in
-      Task {
-        do {
-          let masterPlaylist = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.bipbopURL)
-          
-          guard let uri = masterPlaylist.uris.first else {
-            throw  "No video variant"
-          }
-          
-          let url = Self.bipbopURL.deletingLastPathComponent().appendingPathComponent(uri)
-          let videoPlaylist = try await M3U8Decoder().decode(VideoPlaylist.self, from: url)
-          
-          XCTAssert(videoPlaylist.extm3u)
-          XCTAssert(videoPlaylist.ext_x_version == 7)
-          
-          XCTAssert(videoPlaylist.extm3u)
-          XCTAssert(videoPlaylist.ext_x_targetduration == 6)
-          XCTAssert(videoPlaylist.ext_x_version == 7)
-          XCTAssert(videoPlaylist.ext_x_media_sequence == 1)
-          XCTAssert(videoPlaylist.ext_x_playlist_type == "VOD")
-          XCTAssert(videoPlaylist.ext_x_independent_segments)
-          
-          XCTAssert(videoPlaylist.ext_x_map.uri == "main.mp4")
-          XCTAssert(videoPlaylist.ext_x_map.byterange?.length == 719)
-          XCTAssert(videoPlaylist.ext_x_map.byterange?.start == 0)
-          
-          XCTAssert(videoPlaylist.extinf.count == 100)
-          XCTAssert(videoPlaylist.extinf[0].duration == 6.00000)
-          
-          XCTAssert(videoPlaylist.ext_x_byterange.count == 100)
-          XCTAssert(videoPlaylist.ext_x_byterange[0].length == 1508000)
-          XCTAssert(videoPlaylist.ext_x_byterange[0].start == 719)
-          
-          XCTAssert(videoPlaylist.uris.count == 100)
-          XCTAssert(videoPlaylist.uris[0] == "main.mp4")
-          
-          XCTAssert(videoPlaylist.mediaSegments.count == 100)
-          XCTAssert(videoPlaylist.mediaSegments[0].inf.duration == 6.00000)
-          XCTAssert(videoPlaylist.mediaSegments[0].byterange.length == 1508000)
-          XCTAssert(videoPlaylist.mediaSegments[0].uri == "main.mp4")
-          
-          XCTAssert(videoPlaylist.ext_x_endlist)
-          
-          expectation.fulfill()
-        }
-        catch {
-          XCTFail(error.description)
-        }
-      }
+  func test_video_variant() async throws {
+    let masterPlaylist = try await M3U8Decoder().decode(MasterPlaylist.self, from: Self.bipbopURL)
+    
+    guard let uri = masterPlaylist.uris.first else {
+      throw  "No video variant"
     }
+    
+    let url = Self.bipbopURL.deletingLastPathComponent().appendingPathComponent(uri)
+    let videoPlaylist = try await M3U8Decoder().decode(VideoPlaylist.self, from: url)
+    
+    XCTAssert(videoPlaylist.extm3u)
+    XCTAssert(videoPlaylist.ext_x_version == 7)
+    
+    XCTAssert(videoPlaylist.extm3u)
+    XCTAssert(videoPlaylist.ext_x_targetduration == 6)
+    XCTAssert(videoPlaylist.ext_x_version == 7)
+    XCTAssert(videoPlaylist.ext_x_media_sequence == 1)
+    XCTAssert(videoPlaylist.ext_x_playlist_type == "VOD")
+    XCTAssert(videoPlaylist.ext_x_independent_segments)
+    
+    XCTAssert(videoPlaylist.ext_x_map.uri == "main.mp4")
+    XCTAssert(videoPlaylist.ext_x_map.byterange?.length == 719)
+    XCTAssert(videoPlaylist.ext_x_map.byterange?.start == 0)
+    
+    XCTAssert(videoPlaylist.extinf.count == 100)
+    XCTAssert(videoPlaylist.extinf[0].duration == 6.00000)
+    
+    XCTAssert(videoPlaylist.ext_x_byterange.count == 100)
+    XCTAssert(videoPlaylist.ext_x_byterange[0].length == 1508000)
+    XCTAssert(videoPlaylist.ext_x_byterange[0].start == 719)
+    
+    XCTAssert(videoPlaylist.uris.count == 100)
+    XCTAssert(videoPlaylist.uris[0] == "main.mp4")
+    
+    XCTAssert(videoPlaylist.mediaSegments.count == 100)
+    XCTAssert(videoPlaylist.mediaSegments[0].inf.duration == 6.00000)
+    XCTAssert(videoPlaylist.mediaSegments[0].byterange.length == 1508000)
+    XCTAssert(videoPlaylist.mediaSegments[0].uri == "main.mp4")
+    
+    XCTAssert(videoPlaylist.ext_x_endlist)
   }
 }
