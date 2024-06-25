@@ -56,33 +56,56 @@ class M3U8Parser {
   private static let regexResolution = try! NSRegularExpression(pattern: "(\\d+)x(\\d+)")
   
   private static let boolValues = ["YES", "NO"]
-  private static let arrayTags = [
-    "EXTINF", "EXT-X-BYTERANGE", // Playlist
-    "EXT-X-MEDIA", "EXT-X-STREAM-INF", "EXT-X-I-FRAME-STREAM-INF" // Master playlist
+  
+  private static let arrayTags = ["EXT-X-MEDIA", "EXT-X-I-FRAME-STREAM-INF"]
+  private static let variantStreamTag = "EXT-X-STREAM-INF"
+  private static let mediaSegmentTags: [String] = [
+    "EXTINF",
+    "EXT-X-BYTERANGE",
+    "EXT-X-DISCONTINUITY",
+    "EXT-X-KEY",
+    "EXT-X-MAP",
+    "EXT-X-PROGRAM-DATE-TIME",
+    "EXT-X-DATERANGE",
   ]
   
-  private static func jsonDict(items: [Line]) throws -> [String : Any] {
+  private static func json(lines: [Line]) throws -> [String : Any] {
     var dict = [String : Any]()
     var comments = [String]()
-    var uris = [String]()
     
-    items.forEach { line in
+    // Master Playlist
+    var streams = [[String : Any]]()
+    var stream = [String : Any]()
+    
+    // Media Playlist
+    var segments = [[String : Any]]()
+    var segment = [String : Any]()
+    
+    lines.forEach { line in
       switch line {
         case .tag(let tag, let value):
-          if let item = dict[tag] {
-            if let items = item as? NSMutableArray {
-              items.add(value)
-            }
-            else {
-              dict[tag] = NSMutableArray(objects: item, value)
-            }
+          if tag == variantStreamTag {
+            stream[tag] = value
+          }
+          else if mediaSegmentTags.contains(tag) {
+            segment[tag] = value
           }
           else {
-            if Self.arrayTags.contains(tag) {
-              dict[tag] = NSMutableArray(object: value)
+            if let item = dict[tag] {
+              if let items = item as? NSMutableArray {
+                items.add(value)
+              }
+              else {
+                dict[tag] = NSMutableArray(objects: item, value)
+              }
             }
             else {
-              dict[tag] = value
+              if Self.arrayTags.contains(tag) {
+                dict[tag] = NSMutableArray(object: value)
+              }
+              else {
+                dict[tag] = value
+              }
             }
           }
           break
@@ -92,7 +115,19 @@ class M3U8Parser {
           break
           
         case .uri(let uri):
-          uris.append(uri)
+          // Variant streams
+          if !stream.isEmpty {
+            stream["uri"] = uri
+            streams.append(stream)
+            stream.removeAll()
+          }
+          
+          // Media segments
+          if !segment.isEmpty {
+            segment["uri"] = uri
+            segments.append(segment)
+            segment.removeAll()
+          }
           break
           
         case .none:
@@ -100,12 +135,16 @@ class M3U8Parser {
       }
     }
     
-    if comments.count > 0 {
-      dict["comments"] = comments
+    if streams.count > 0 {
+      dict["streams"] = streams
     }
     
-    if uris.count > 0 {
-      dict["uris"] = uris
+    if segments.count > 0 {
+      dict["segments"] = segments
+    }
+    
+    if comments.count > 0 {
+      dict["comments"] = comments
     }
     
     return dict
@@ -113,11 +152,13 @@ class M3U8Parser {
   
   static func parse(string: String) throws -> [String : Any] {
     var lines = [String]()
-    string.enumerateLines { line, _ in
-      if !line.isEmpty {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
-        lines.append(trimmed)
+    string.enumerateLines { line, stop in
+      guard !line.isEmpty else {
+        return
       }
+      let trimmed = line.trimmingCharacters(in: .whitespaces)
+      lines.append(trimmed)
+      stop = trimmed == "#EXT-X-ENDLIST"
     }
     
     // Validate: #EXTM3U
@@ -141,7 +182,7 @@ class M3U8Parser {
     
     group.wait()
     
-    return try jsonDict(items: items)
+    return try json(lines: items)
   }
   
   private static func parse(line: String) -> Line {
