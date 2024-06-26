@@ -45,7 +45,6 @@ fileprivate enum Line {
   case tag(String, Any)
   case comment(String)
   case uri(String)
-  case none
 }
 
 class M3U8Parser {
@@ -69,17 +68,17 @@ class M3U8Parser {
     "EXT-X-DATERANGE",
   ]
   
-  private static func json(lines: [Line]) throws -> [String : Any] {
-    var dict = [String : Any]()
-    var comments = [String]()
+  private static func json(lines: [Line]) throws -> NSMutableDictionary {
+    let dict = NSMutableDictionary()
+    let comments = NSMutableArray()
     
-    // Master Playlist
-    var streams = [[String : Any]]()
-    var stream = [String : Any]()
+    // Variant stream
+    let streams = NSMutableArray()
+    let stream = NSMutableDictionary()
     
-    // Media Playlist
-    var segments = [[String : Any]]()
-    var segment = [String : Any]()
+    // Media segment
+    let segments = NSMutableArray()
+    let segment = NSMutableDictionary()
     
     lines.forEach { line in
       switch line {
@@ -111,26 +110,23 @@ class M3U8Parser {
           break
           
         case .comment(let comment):
-          comments.append(comment)
+          comments.add(comment)
           break
           
         case .uri(let uri):
-          // Variant streams
-          if !stream.isEmpty {
+          // Variant stream
+          if stream.count > 0 {
             stream["uri"] = uri
-            streams.append(stream)
-            stream.removeAll()
+            streams.add(stream.copy())
+            stream.removeAllObjects()
           }
           
-          // Media segments
-          if !segment.isEmpty {
+          // Media segment
+          if segment.count > 0 {
             segment["uri"] = uri
-            segments.append(segment)
-            segment.removeAll()
+            segments.add(segment.copy())
+            segment.removeAllObjects()
           }
-          break
-          
-        case .none:
           break
       }
     }
@@ -150,7 +146,7 @@ class M3U8Parser {
     return dict
   }
   
-  static func parse(string: String) throws -> [String : Any] {
+  static func parse(string: String) throws -> NSMutableDictionary {
     var lines = [String]()
     string.enumerateLines { line, stop in
       guard !line.isEmpty else {
@@ -166,7 +162,7 @@ class M3U8Parser {
       throw M3U8Decoder.Error.notPlaylist
     }
     
-    var items = [Line](repeating: .none, count: lines.count)
+    var items = [Line](repeating: .uri(""), count: lines.count)
     
     let group = DispatchGroup()
     
