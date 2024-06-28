@@ -310,7 +310,7 @@ class M3U8Parser {
     : keyValues
   }
   
-  private static func parse(line: String) -> Line {
+  private static func parse(line: String, onParseTag: M3U8Decoder.OnParseTag?) -> Line {
     // #EXT
     if line.hasPrefix("#EXT") {
       let range = NSRange(location: 0, length: line.utf16.count)
@@ -321,7 +321,18 @@ class M3U8Parser {
         let tag = String(line[tagRange])
         let attributes = String(line[attributesRange])
         
-        let value = parse(tag: tag, attributes: attributes)
+        let value = if let onParseTag {
+          switch onParseTag(tag, attributes) {
+            case .parse:
+              parse(tag: tag, attributes: attributes)
+              
+            case .parsed(let value):
+              value
+          }
+        }
+        else {
+          parse(tag: tag, attributes: attributes)
+        }
         
         return .tag(tag, value)
       }
@@ -337,7 +348,7 @@ class M3U8Parser {
     return .uri(line)
   }
   
-  static func parse(string: String) throws -> NSMutableDictionary {
+  static func parse(string: String, onParseTag: M3U8Decoder.OnParseTag?) throws -> NSMutableDictionary {
     var lines = [String]()
     string.enumerateLines { line, stop in
       guard !line.isEmpty else {
@@ -362,7 +373,7 @@ class M3U8Parser {
       .forEach { i, line in
         group.enter()
         DispatchQueue.global().async {
-          items[i] = parse(line: line)
+          items[i] = parse(line: line, onParseTag: onParseTag)
           group.leave()
         }
       }

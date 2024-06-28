@@ -136,6 +136,15 @@ fileprivate extension JSONDecoder.DataDecodingStrategy {
 ///
 public class M3U8Decoder {
   
+  public enum Error: String, LocalizedError {
+    case notPlaylist = "Not Extended M3U Playlist file."
+    case badData = "Bad data."
+    
+    public var errorDescription: String? {
+      self.rawValue
+    }
+  }
+  
   /// The strategy to use for automatically changing the value of keys before decoding.
   public enum KeyDecodingStrategy {
     /// Converting playlist tag and attribute names to snake case.
@@ -175,18 +184,13 @@ public class M3U8Decoder {
   /// The strategy to use in decoding binary data. Defaults to `.hex`.
   public var dataDecodingStrategy: DataDecodingStrategy = .hex
   
-  public enum Error: String, LocalizedError {
-    case notPlaylist = "Not Extended M3U Playlist file."
-    
-    case badData = "Bad data."
-    
-    public var errorDescription: String? {
-      self.rawValue
-    }
+  public enum ParseCommand {
+    case parse
+    case parsed(Any)
   }
   
-  /// Creates a new, reusable Media Playlist decoder with the default formatting settings and decoding strategies.
-  public init() {}
+  public typealias OnParseTag = (String, String) -> ParseCommand
+  public var onParseTag: OnParseTag?
   
   private var decoder: JSONDecoder {
     let decoder = JSONDecoder()
@@ -217,6 +221,9 @@ public class M3U8Decoder {
     return decoder
   }
   
+  /// Creates a new, reusable Media Playlist decoder with the default formatting settings and decoding strategies.
+  public init() {}
+  
   /// Returns a value of the type you specify, decoded from Media Playlist text.
   ///
   /// If the text isn’t valid Media Playlist or fails to decode this method throws the corresponding error.
@@ -227,7 +234,7 @@ public class M3U8Decoder {
   /// - Returns: A value of the requested type.
   /// - Throws: An error if any value throws an error during decoding.
   public func decode<T: Decodable>(_ type: T.Type, from string: String) throws -> T {
-    let dict = try M3U8Parser.parse(string: string)
+    let dict = try M3U8Parser.parse(string: string, onParseTag: onParseTag)
     let data = try JSONSerialization.data(withJSONObject: dict)
     return try decoder.decode(type, from: data)
   }

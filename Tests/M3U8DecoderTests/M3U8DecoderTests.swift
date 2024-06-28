@@ -242,6 +242,46 @@ final class M3U8_All: XCTestCase {
     XCTAssert(playlist.ext_custom_array == [2, 3, 4])
   }
   
+  func test_custom_parse() throws {
+    let text =
+      #"""
+      #EXTM3U
+      #EXT-CUSTOM-TAG:{"duration": 10.3, "title": "Title", "id": 12345}
+      """#
+    
+    struct CustomTag: Decodable {
+      let duration: Double
+      let title: String
+      let id: Int
+    }
+    
+    struct MediaPlaylist: Decodable {
+      let ext_custom_tag: CustomTag
+    }
+    
+    let decoder = M3U8Decoder()
+    decoder.onParseTag = { (tag: String, attributes: String) -> M3U8Decoder.ParseCommand in
+      if tag == "EXT-CUSTOM-TAG" {
+        do {
+          if let data = attributes.data(using: .utf8) {
+            let dict = try JSONSerialization.jsonObject(with: data)
+            return .parsed(dict)
+          }
+        }
+        catch {
+          print(error)
+        }
+      }
+      return .parse
+    }
+    
+    let playlist = try decoder.decode(MediaPlaylist.self, from: text)
+    
+    XCTAssert(playlist.ext_custom_tag.duration == 10.3)
+    XCTAssert(playlist.ext_custom_tag.title == "Title")
+    XCTAssert(playlist.ext_custom_tag.id == 12345)
+  }
+  
   func test_data_hex() throws {
     let text =
       """
