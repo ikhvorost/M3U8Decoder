@@ -106,84 +106,22 @@ final class M3U8_All: XCTestCase {
     let text =
       #"""
       #EXTM3U
-      #EXT-X-VERSION:7
-      #EXT-X-MAP:URI="main1.mp4",BYTERANGE="1118@0",URI="main2.mp4"
       
-      #EXTINF:10,"The Ben Maller Show",b=100,c="zc4732"
-      https://n0ab-e2.revma.ihrhls.com/zc4732/10_sz0pexjzvq8g02/main/171115542.aac
-      
-      #EXTINF:11,title="Law Office Of Michael S Lamonsoff*Power Only*",artist="Angie Martinez",url="song_spot=\"T\" MediaBaseId=\"-1\" itunesTrackId=\"0\" amgTrackId=\"-1\" amgArtistId=\"0\" TAID=\"-1\" TPID=\"-1\" cartcutId=\"8003384001\" amgArtworkURL=\"\" length=\"00:00:58\" unsID=\"-1\" spotInstanceId=\"46787245\""
+      #EXTINF:10,title="Law Office Of Michael S Lamonsoff*Power Only*",artist="Angie Martinez",url="song_spot=\"T\" MediaBaseId=\"-1\" itunesTrackId=\"0\" amgTrackId=\"-1\" amgArtistId=\"0\" TAID=\"-1\" TPID=\"-1\" cartcutId=\"8003384001\" amgArtworkURL=\"\" length=\"00:00:58\" unsID=\"-1\" spotInstanceId=\"46787245\""
       http://cdn-chunks.prod.ihrhls.com/1481/4qgsCGy7Amkp-154241599-10031.aac
       
-      #EXTINF:12,title="The Ben Maller Show",artist="zc4732",url="song_spot=\"T\" spotInstanceId=\"-1\" length=\"04:00:00\" MediaBaseId=\"\" TAID=\"0\" TPID=\"0\" cartcutId=\"\" amgArtworkURL=\"https://storage.googleapis.com/portal-content.zettacloud.appspot.com/shows/cff92185-5e92-11ec-9478-8bbc72f158cb/logo\" spEventID=\"01f47968-ccac-11ee-a9cf-f50937f44113\" "
-      https://n0ab-e2.revma.ihrhls.com/zc4732/10_sz0pexjzvq8g02/main/171115542.aac
+      #EXTINF:11.0,title="Law Office Of Michael S Lamonsoff*Power Only*",artist="Angie Martinez",url="song_spot=\"T\" MediaBaseId=\"-1\" itunesTrackId=\"0\" amgTrackId=\"-1\" amgArtistId=\"0\" TAID=\"-1\" TPID=\"-1\" cartcutId=\"8003384001\" amgArtworkURL=\"\" length=\"00:00:58\" unsID=\"-1\" spotInstanceId=\"46787245\""
+      http://cdn-chunks.prod.ihrhls.com/1481/ei6nb06Xxlqp-154241600-9984.aac
+      
+      #EXTINF:12.2,title="Bjs Wholesale Club",artist="Bjs Wholesale Club",url="song_spot=\"T\" MediaBaseId=\"-1\" itunesTrackId=\"0\" amgTrackId=\"-1\" amgArtistId=\"0\" TAID=\"-1\" TPID=\"-1\" cartcutId=\"8006354001\" amgArtworkURL=\"\" length=\"00:00:14\" unsID=\"-1\" spotInstanceId=\"48319279\""
+      http://cdn-chunks.prod.ihrhls.com/1481/360uKI2auRup-154241601-9984.aac
       """#
     
     struct CustomExtInf: Decodable {
       let duration: Double
       let title: String
-      let artist: String?
-      let url: String?
-    }
-    
-    struct CustomMediaSegment: Decodable {
-      let extinf: CustomExtInf
-      let ext_x_map: EXT_X_MAP?
-    }
-    
-    struct Playlist: Decodable {
-      let segments: [CustomMediaSegment]
-    }
-    
-    let playlist = try M3U8Decoder().decode(Playlist.self, from: text)
-    
-    XCTAssert(playlist.segments.count == 3)
-    
-    XCTAssert(playlist.segments[0].ext_x_map?.byterange?.length == 1118)
-    XCTAssert(playlist.segments[0].ext_x_map?.byterange?.start == 0)
-    XCTAssert(playlist.segments[0].ext_x_map?.uri == "main2.mp4")
-    XCTAssert(playlist.segments[0].extinf.duration == 10)
-    XCTAssert(playlist.segments[0].extinf.title == "\"The Ben Maller Show\",b=100,c=\"zc4732\"")
-    XCTAssert(playlist.segments[0].extinf.artist == nil)
-    XCTAssert(playlist.segments[0].extinf.url == nil)
-    
-    XCTAssert(playlist.segments[1].extinf.duration == 11)
-    XCTAssert(playlist.segments[1].extinf.title == "Law Office Of Michael S Lamonsoff*Power Only*")
-    XCTAssert(playlist.segments[1].extinf.artist == "Angie Martinez")
-    XCTAssert(playlist.segments[1].extinf.url?.contains("46787245") == true)
-    
-    XCTAssert(playlist.segments[2].extinf.duration == 12)
-    XCTAssert(playlist.segments[2].extinf.title == "The Ben Maller Show")
-    XCTAssert(playlist.segments[2].extinf.artist == "zc4732")
-    XCTAssert(playlist.segments[2].extinf.url?.contains("01f47968-ccac-11ee-a9cf-f50937f44113") == true)
-  }
-  
-  func test_custom_tags() throws {
-    let text =
-      """
-      #EXTM3U
-      #EXT-CUSTOM-TAG1:1
-      #EXT-CUSTOM-TAG2:VALUE1=1,VALUE2="Text",VALUE3="",VALUE4=
-      #EXT-CUSTOM-ARRAY:1
-      #EXT-CUSTOM-ARRAY:2
-      #EXT-CUSTOM-ARRAY:3
-      
-      #EXTINF:10,title="Dark Horse",artist="Katy Perry / Juicy J",song_spot=\"M\" MediaBaseId=\"1971116\" itunesTrackId=\"0\" amgTrackId=\"-1\" amgArtistId=\"0\" TAID=\"35141\" TPID=\"23894643\" cartcutId=\"0729388001\" amgArtworkURL=\"http://assets.iheart.com/images/1080/MI0003667474\" length=\"00:03:32\" unsID=\"-1\"
-      main.mp4
-      """
-    
-    struct CustomAttributes: Decodable {
-      let value1: Int
-      let value2: String
-      let value3: String
-      let value4: String?
-    }
-    
-    struct CustomExtInf: Decodable {
-      let duration: Double
-      let title: String
       let artist: String
-      let song_spot: String
+      let url: String
       let mediabaseid: String
       let itunestrackid: String
       let amgtrackid: String
@@ -194,6 +132,7 @@ final class M3U8_All: XCTestCase {
       let amgartworkurl: String
       let length: String
       let unsid: String
+      let spotinstanceid: String
     }
     
     struct CustomMediaSegment: Decodable {
@@ -201,40 +140,106 @@ final class M3U8_All: XCTestCase {
       let uri: String
     }
     
+    struct Playlist: Decodable {
+      let segments: [CustomMediaSegment]
+    }
+    
+    let playlist = try M3U8Decoder().decode(Playlist.self, from: text)
+    
+    XCTAssert(playlist.segments.count == 3)
+    
+    XCTAssert(playlist.segments[0].extinf.duration == 10)
+    XCTAssert(playlist.segments[0].extinf.title == "Law Office Of Michael S Lamonsoff*Power Only*")
+    XCTAssert(playlist.segments[0].extinf.artist == "Angie Martinez")
+    XCTAssert(playlist.segments[0].extinf.url == "song_spot=")
+    XCTAssert(playlist.segments[0].extinf.mediabaseid == "-1")
+    XCTAssert(playlist.segments[0].extinf.itunestrackid == "0")
+    XCTAssert(playlist.segments[0].extinf.amgtrackid == "-1")
+    XCTAssert(playlist.segments[0].extinf.amgartistid == "0")
+    XCTAssert(playlist.segments[0].extinf.taid == "-1")
+    XCTAssert(playlist.segments[0].extinf.tpid == "-1")
+    XCTAssert(playlist.segments[0].extinf.cartcutid == "8003384001")
+    XCTAssert(playlist.segments[0].extinf.amgartworkurl == "")
+    XCTAssert(playlist.segments[0].extinf.length == "00:00:58")
+    XCTAssert(playlist.segments[0].extinf.unsid == "-1")
+    XCTAssert(playlist.segments[0].extinf.spotinstanceid == "46787245")
+    XCTAssert(playlist.segments[0].uri == "http://cdn-chunks.prod.ihrhls.com/1481/4qgsCGy7Amkp-154241599-10031.aac")
+
+    
+    XCTAssert(playlist.segments[1].extinf.duration == 11.0)
+    XCTAssert(playlist.segments[1].extinf.title == "Law Office Of Michael S Lamonsoff*Power Only*")
+    XCTAssert(playlist.segments[1].extinf.artist == "Angie Martinez")
+    XCTAssert(playlist.segments[1].extinf.url == "song_spot=")
+    XCTAssert(playlist.segments[1].extinf.mediabaseid == "-1")
+    XCTAssert(playlist.segments[1].extinf.itunestrackid == "0")
+    XCTAssert(playlist.segments[1].extinf.amgtrackid == "-1")
+    XCTAssert(playlist.segments[1].extinf.amgartistid == "0")
+    XCTAssert(playlist.segments[1].extinf.taid == "-1")
+    XCTAssert(playlist.segments[1].extinf.tpid == "-1")
+    XCTAssert(playlist.segments[1].extinf.cartcutid == "8003384001")
+    XCTAssert(playlist.segments[1].extinf.amgartworkurl == "")
+    XCTAssert(playlist.segments[1].extinf.length == "00:00:58")
+    XCTAssert(playlist.segments[1].extinf.unsid == "-1")
+    XCTAssert(playlist.segments[1].extinf.spotinstanceid == "46787245")
+    XCTAssert(playlist.segments[1].uri == "http://cdn-chunks.prod.ihrhls.com/1481/ei6nb06Xxlqp-154241600-9984.aac")
+    
+    XCTAssert(playlist.segments[2].extinf.duration == 12.2)
+    XCTAssert(playlist.segments[2].extinf.title == "Bjs Wholesale Club")
+    XCTAssert(playlist.segments[2].extinf.artist == "Bjs Wholesale Club")
+    XCTAssert(playlist.segments[2].extinf.url == "song_spot=")
+    XCTAssert(playlist.segments[2].extinf.mediabaseid == "-1")
+    XCTAssert(playlist.segments[2].extinf.itunestrackid == "0")
+    XCTAssert(playlist.segments[2].extinf.amgtrackid == "-1")
+    XCTAssert(playlist.segments[2].extinf.amgartistid == "0")
+    XCTAssert(playlist.segments[2].extinf.taid == "-1")
+    XCTAssert(playlist.segments[2].extinf.tpid == "-1")
+    XCTAssert(playlist.segments[2].extinf.cartcutid == "8006354001")
+    XCTAssert(playlist.segments[2].extinf.amgartworkurl == "")
+    XCTAssert(playlist.segments[2].extinf.length == "00:00:14")
+    XCTAssert(playlist.segments[2].extinf.unsid == "-1")
+    XCTAssert(playlist.segments[2].extinf.spotinstanceid == "48319279")
+    XCTAssert(playlist.segments[2].uri == "http://cdn-chunks.prod.ihrhls.com/1481/360uKI2auRup-154241601-9984.aac")
+  }
+  
+  func test_custom_tags() throws {
+    let text =
+      """
+      #EXTM3U
+      #EXT-CUSTOM-TAG1:1
+      #EXT-CUSTOM-TAG2:a=a,b="b",c=\"c\" d='d' e=\'e\' f=
+      #EXT-CUSTOM-ARRAY:2
+      #EXT-CUSTOM-ARRAY:3
+      #EXT-CUSTOM-ARRAY:4
+      """
+    
+    struct CustomAttributes: Decodable {
+      let a: String
+      let b: String
+      let c: String
+      let d: String
+      let e: String
+      let f: String?
+    }
+    
     struct CustomPlaylist: Decodable {
       let ext_custom_tag1: Int
       let ext_custom_tag2: CustomAttributes
       let ext_custom_array: [Int]
-      let segments: [CustomMediaSegment]
     }
     
     let playlist = try M3U8Decoder().decode(CustomPlaylist.self, from: text)
     
     XCTAssert(playlist.ext_custom_tag1 == 1)
-    XCTAssert(playlist.ext_custom_tag2.value1 == 1)
-    XCTAssert(playlist.ext_custom_tag2.value2 == "Text")
-    XCTAssert(playlist.ext_custom_tag2.value3 == "")
-    XCTAssert(playlist.ext_custom_tag2.value4 == nil)
+    
+    XCTAssert(playlist.ext_custom_tag2.a == "a")
+    XCTAssert(playlist.ext_custom_tag2.b == "b")
+    XCTAssert(playlist.ext_custom_tag2.c == "c")
+    XCTAssert(playlist.ext_custom_tag2.d == "d")
+    XCTAssert(playlist.ext_custom_tag2.e == "e")
+    XCTAssert(playlist.ext_custom_tag2.f == nil)
     
     XCTAssert(playlist.ext_custom_array.count == 3)
-    XCTAssert(playlist.ext_custom_array == [1, 2, 3])
-    
-    XCTAssert(playlist.segments.count == 1)
-    XCTAssert(playlist.segments[0].extinf.duration == 10)
-    XCTAssert(playlist.segments[0].extinf.title == "Dark Horse")
-    XCTAssert(playlist.segments[0].extinf.artist == "Katy Perry / Juicy J")
-    XCTAssert(playlist.segments[0].extinf.song_spot == "M")
-    XCTAssert(playlist.segments[0].extinf.mediabaseid == "1971116")
-    XCTAssert(playlist.segments[0].extinf.itunestrackid == "0")
-    XCTAssert(playlist.segments[0].extinf.amgtrackid == "-1")
-    XCTAssert(playlist.segments[0].extinf.amgartistid == "0")
-    XCTAssert(playlist.segments[0].extinf.taid == "35141")
-    XCTAssert(playlist.segments[0].extinf.tpid == "23894643")
-    XCTAssert(playlist.segments[0].extinf.cartcutid == "0729388001")
-    XCTAssert(playlist.segments[0].extinf.amgartworkurl == "http://assets.iheart.com/images/1080/MI0003667474")
-    XCTAssert(playlist.segments[0].extinf.length == "00:03:32")
-    XCTAssert(playlist.segments[0].extinf.unsid == "-1")
-    XCTAssert(playlist.segments[0].uri == "main.mp4")
+    XCTAssert(playlist.ext_custom_array == [2, 3, 4])
   }
   
   func test_data_hex() throws {

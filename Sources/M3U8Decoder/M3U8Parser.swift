@@ -25,20 +25,38 @@
 import Foundation
 
 fileprivate extension String {
+  
+  private static let yes: [String] = ["YES", "yes", "TRUE", "true"]
+  private static let no: [String] = ["NO", "no", "FALSE", "false"]
+  private static let quotes: [String] = ["\"", "\\\"", "'", "\\'"]
+  
   var isBase64: Bool {
-    Data(base64Encoded: self) != nil
+    (hasSuffix("=") || hasSuffix("==")) && Data(base64Encoded: self) != nil
+  }
+  
+  var booleanValue: Bool? {
+    if Self.yes.contains(self) {
+      return true
+    }
+    if Self.no.contains(self) {
+      return false
+    }
+    return nil
+  }
+  
+  var hasQuotePrefix: Bool {
+    for q in Self.quotes {
+      if hasPrefix(q) {
+        return true
+      }
+    }
+    return false
   }
 }
 
 fileprivate extension CharacterSet {
-  static let quotes = CharacterSet(charactersIn: "\"")
+  static let quotes = CharacterSet(charactersIn: #""'\\"#)
   static let hashes = CharacterSet(charactersIn: "#")
-}
-
-fileprivate enum ParseResult {
-  case object([String : Any])
-  case other(Any)
-  case none
 }
 
 fileprivate enum Line {
@@ -49,12 +67,10 @@ fileprivate enum Line {
 
 class M3U8Parser {
   private static let regexExtTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
-  private static let regexAttributes = try! NSRegularExpression(pattern: "([^=,\\s]+)=((\"([^\"]+)\")|([^,]+))")
+  private static let regexAttributes = try! NSRegularExpression(pattern: #"([^=,\s]+)=((\\?"[^\\"]+)|(\\?'[^\\']+)|([^,\s]+))"#)
   private static let regexExtInf = try! NSRegularExpression(pattern: "^([^,]+),?(.*)$")
   private static let regexByterange = try! NSRegularExpression(pattern: "(\\d+)@?(\\d*)")
   private static let regexResolution = try! NSRegularExpression(pattern: "(\\d+)x(\\d+)")
-  
-  private static let boolValues = ["YES", "NO"]
   
   private static let arrayTags = ["EXT-X-MEDIA", "EXT-X-I-FRAME-STREAM-INF"]
   private static let variantStreamTag = "EXT-X-STREAM-INF"
@@ -146,6 +162,181 @@ class M3U8Parser {
     return dict
   }
   
+  private static func value(text: String) -> Any {
+    // Skip hex
+    guard text.hasPrefix("0x") == false, text.hasPrefix("0X") == false else {
+      return text
+    }
+    
+    if let number = Double(text) {
+      return number
+    }
+    else if let value = text.booleanValue {
+      return value
+    }
+    
+    return text
+  }
+  
+  private static func parse(attribute: String, text: String) -> Any? {
+    let range = NSRange(location: 0, length: text.utf16.count)
+    
+    // BYTERANGE:<n>[@<o>]
+    if attribute == "BYTERANGE" {
+      if let match = Self.regexByterange.matches(in: text, options: [], range: range).first,
+         match.numberOfRanges == 3,
+         let lengthRange = Range(match.range(at: 1), in: text),
+         let startRange = Range(match.range(at: 2), in: text)
+      {
+        var keyValues = [String : Any]()
+        
+        let length = String(text[lengthRange])
+        keyValues["length"] = value(text: length)
+        
+        let start = String(text[startRange])
+        if start.isEmpty == false {
+          keyValues["start"] = value(text: start)
+        }
+        
+        return keyValues
+      }
+    }
+    // RESOLUTION=<width>x<height>
+    else if attribute == "RESOLUTION" {
+      let matches = Self.regexResolution.matches(in: text, options: [], range: range)
+      if let match = matches.first, match.numberOfRanges == 3,
+         let widthRange = Range(match.range(at: 1), in: text),
+         let heightRange = Range(match.range(at: 2), in: text)
+      {
+        var keyValues = [String : Any]()
+        
+        let width = String(text[widthRange])
+        keyValues["width"] = value(text: width)
+        
+        let height = String(text[heightRange])
+        keyValues["height"] = value(text:height)
+        
+        return keyValues
+      }
+    }
+    // CODECS="codec1,codec2,..."
+    else if attribute == "CODECS" {
+      return text
+        .trimmingCharacters(in: .quotes)
+        .components(separatedBy: ",")
+    }
+    
+    return nil
+  }
+  
+  private static func parse(tag: String, attributes: String) -> Any {
+    // Bool
+    guard attributes.isEmpty == false else {
+      return true
+    }
+    
+    // Base64 data
+    if attributes.isBase64 {
+      return attributes
+    }
+    
+    var keyValues = [String : Any]()
+    let range = NSRange(location: 0, length: attributes.utf16.count)
+    
+    // #EXTINF:<duration>,[<title>]
+    if tag == "EXTINF" {
+      if let match = Self.regexExtInf.matches(in: attributes, options: [], range: range).first,
+         match.numberOfRanges == 3,
+         let durationRange = Range(match.range(at: 1), in: attributes),
+         let titleRange = Range(match.range(at: 2), in: attributes)
+      {
+        let duration = String(attributes[durationRange])
+        keyValues["duration"] = value(text: duration)
+        
+        let title = String(attributes[titleRange])
+        if !title.isEmpty {
+          keyValues["title"] = title
+        }
+      }
+    }
+    // #EXT-X-BYTERANGE:<n>[@<o>]
+    else if tag == "EXT-X-BYTERANGE" {
+      if let match = Self.regexByterange.matches(in: attributes, options: [], range: range).first,
+         match.numberOfRanges == 3,
+         let lengthRange = Range(match.range(at: 1), in: attributes),
+         let startRange = Range(match.range(at: 2), in: attributes)
+      {
+        let length = String(attributes[lengthRange])
+        keyValues["length"] = value(text: length)
+        
+        let start = String(attributes[startRange])
+        if !start.isEmpty {
+          keyValues["start"] = value(text:start)
+        }
+      }
+    }
+    
+    // Other
+    Self.regexAttributes.matches(in: attributes, options: [], range: range).forEach {
+      guard $0.numberOfRanges >= 3 else { return }
+      
+      let keyRange = Range($0.range(at: 1), in: attributes)!
+      let key = String(attributes[keyRange])
+      
+      let valueRange = Range($0.range(at: 2), in: attributes)!
+      let value = String(attributes[valueRange])
+      
+      if let obj = parse(attribute: key, text: value) {
+        keyValues[key] = obj
+      }
+      else {
+        // Base64 data
+        if value.isBase64 {
+          keyValues[key] = value
+        }
+        else {
+          if value.hasQuotePrefix {
+            keyValues[key] = value.trimmingCharacters(in: .quotes)
+          }
+          else {
+            keyValues[key] = self.value(text: value)
+          }
+        }
+      }
+    }
+    
+    return keyValues.isEmpty
+    ? value(text: attributes)
+    : keyValues
+  }
+  
+  private static func parse(line: String) -> Line {
+    // #EXT
+    if line.hasPrefix("#EXT") {
+      let range = NSRange(location: 0, length: line.utf16.count)
+      if let match = Self.regexExtTag.matches(in: line, options: [], range: range).first,
+         let tagRange = Range(match.range(at: 1), in: line),
+         let attributesRange = Range(match.range(at: 2), in: line)
+      {
+        let tag = String(line[tagRange])
+        let attributes = String(line[attributesRange])
+        
+        let value = parse(tag: tag, attributes: attributes)
+        
+        return .tag(tag, value)
+      }
+    }
+    // Comments
+    else if line.hasPrefix("#") {
+      let text = line
+        .trimmingCharacters(in: .hashes)
+        .trimmingCharacters(in: .whitespaces)
+      return .comment(text)
+    }
+    // URI
+    return .uri(line)
+  }
+  
   static func parse(string: String) throws -> NSMutableDictionary {
     var lines = [String]()
     string.enumerateLines { line, stop in
@@ -179,162 +370,5 @@ class M3U8Parser {
     group.wait()
     
     return try json(lines: items)
-  }
-  
-  private static func parse(line: String) -> Line {
-    // #EXT
-    if line.hasPrefix("#EXT") {
-      let range = NSRange(location: 0, length: line.utf16.count)
-      if let match = Self.regexExtTag.matches(in: line, options: [], range: range).first,
-         let tagRange = Range(match.range(at: 1), in: line),
-         let attributesRange = Range(match.range(at: 2), in: line)
-      {
-        let tag = String(line[tagRange])
-        let attributes = String(line[attributesRange])
-        
-        let value = parse(tag: tag, attributes: attributes)
-        return .tag(tag, value)
-      }
-    }
-    // Comments
-    else if line.hasPrefix("#") {
-      let text = line
-        .trimmingCharacters(in: .hashes)
-        .trimmingCharacters(in: .whitespaces)
-      return .comment(text)
-    }
-    // URI
-    return .uri(line)
-  }
-  
-  private static func convertType(text: String) -> Any {
-    // Skip quoted strings or hex
-    guard text.hasPrefix("\"") == false, text.hasPrefix("0x") == false, text.hasPrefix("0X") == false else {
-      return text.trimmingCharacters(in: .quotes)
-    }
-    
-    if let number = Double(text) {
-      return number
-    }
-    else if Self.boolValues.contains(text) {
-      return text == "YES"
-    }
-    
-    return text
-  }
-  
-  private static func parse(name: String, value: String) -> ParseResult {
-    var keyValues = [String : Any]()
-    let range = NSRange(location: 0, length: value.utf16.count)
-    
-    // #EXTINF:<duration>,[<title>]
-    if name == "EXTINF" {
-      if let match = Self.regexExtInf.matches(in: value, options: [], range: range).first,
-         match.numberOfRanges == 3,
-         let durationRange = Range(match.range(at: 1), in: value),
-         let titleRange = Range(match.range(at: 2), in: value)
-      {
-        let duration = String(value[durationRange])
-        keyValues["duration"] = self.convertType(text: duration)
-        
-        let title = String(value[titleRange])
-        if title.isEmpty == false {
-          keyValues["title"] = title
-        }
-        
-        return .object(keyValues)
-      }
-    }
-    // #EXT-X-BYTERANGE:<n>[@<o>]
-    else if name == "EXT-X-BYTERANGE" || name == "BYTERANGE" {
-      if let match = Self.regexByterange.matches(in: value, options: [], range: range).first,
-         match.numberOfRanges == 3,
-         let lengthRange = Range(match.range(at: 1), in: value),
-         let startRange = Range(match.range(at: 2), in: value)
-      {
-        let length = String(value[lengthRange])
-        keyValues["length"] = self.convertType(text: length)
-        
-        let start = String(value[startRange])
-        if start.isEmpty == false {
-          keyValues["start"] = self.convertType(text:start)
-        }
-        
-        return .object(keyValues)
-      }
-    }
-    // #RESOLUTION=<width>x<height>
-    else if name == "RESOLUTION" {
-      let matches = Self.regexResolution.matches(in: value, options: [], range: range)
-      if let match = matches.first, match.numberOfRanges == 3,
-         let widthRange = Range(match.range(at: 1), in: value),
-         let heightRange = Range(match.range(at: 2), in: value)
-      {
-        let width = String(value[widthRange])
-        keyValues["width"] = self.convertType(text: width)
-        
-        let height = String(value[heightRange])
-        keyValues["height"] = self.convertType(text:height)
-        
-        return .object(keyValues)
-      }
-    }
-    // CODECS="codec1,codec2,..."
-    else if name == "CODECS" {
-      let array = value
-        .trimmingCharacters(in: .quotes)
-        .components(separatedBy: ",")
-      return .other(array)
-    }
-    return .none
-  }
-  
-  private static func parse(attributes: String, keyValues: inout [String : Any]) {
-    let text = attributes.contains(#"\""#)
-      ? attributes.replacingOccurrences(of: #"\""#, with: "'")
-      : attributes
-    
-    let range = NSRange(location: 0, length: text.utf16.count)
-    Self.regexAttributes.matches(in: text, options: [], range: range).forEach {
-      guard $0.numberOfRanges >= 3 else { return }
-      
-      let keyRange = Range($0.range(at: 1), in: text)!
-      let name = String(text[keyRange])
-      
-      let valueRange = Range($0.range(at: 2), in: text)!
-      let value = String(text[valueRange])
-      
-      switch parse(name: name, value: value) {
-        case let .object(object):
-          keyValues[name] = object
-        case let .other(item):
-          keyValues[name] = item
-        case .none:
-          keyValues[name] = self.convertType(text: value)
-      }
-    }
-  }
-  
-  private static func parse(tag: String, attributes: String) -> Any {
-    // Bool tag
-    guard attributes.isEmpty == false else {
-      return true
-    }
-    
-    // Base64
-    if (attributes.hasSuffix("=") || attributes.hasSuffix("==")) && attributes.isBase64 {
-      return attributes
-    }
-    
-    var keyValues = [String : Any]()
-    if case let .object(dict) = parse(name: tag, value: attributes) {
-      keyValues = dict
-    }
-    parse(attributes: attributes, keyValues: &keyValues)
-    guard keyValues.count == 0 else {
-      return keyValues
-    }
-    
-    return convertType(text: attributes)
   }
 }
