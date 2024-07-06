@@ -66,6 +66,7 @@ fileprivate enum Line {
 }
 
 class M3U8Parser {
+  
   private static let regexExtTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
   private static let regexAttributes = try! NSRegularExpression(pattern: #"([^=,\s]+)=((\\?"[^\\"]+)|(\\?'[^\\']+)|([^,\s]+))"#)
   private static let regexExtInf = try! NSRegularExpression(pattern: "^([^,]+),?(.*)$")
@@ -123,11 +124,9 @@ class M3U8Parser {
               }
             }
           }
-          break
           
         case .comment(let comment):
           comments.add(comment)
-          break
           
         case .uri(let uri):
           // Variant stream
@@ -143,7 +142,6 @@ class M3U8Parser {
             segments.add(segment.copy())
             segment.removeAllObjects()
           }
-          break
       }
     }
     
@@ -306,11 +304,11 @@ class M3U8Parser {
     }
     
     return keyValues.isEmpty
-    ? value(text: attributes)
-    : keyValues
+      ? value(text: attributes)
+      : keyValues
   }
   
-  private static func parse(line: String, onParseTag: M3U8Decoder.OnParseTag?) -> Line {
+  private static func parse(line: String, parseHandler: M3U8Decoder.ParseHandler?) -> Line {
     // #EXT
     if line.hasPrefix("#EXT") {
       let range = NSRange(location: 0, length: line.utf16.count)
@@ -321,8 +319,8 @@ class M3U8Parser {
         let tag = String(line[tagRange])
         let attributes = String(line[attributesRange])
         
-        let value = if let onParseTag {
-          switch onParseTag(tag, attributes) {
+        let value = if let parseHandler {
+          switch parseHandler(tag, attributes) {
             case .parse:
               parse(tag: tag, attributes: attributes)
               
@@ -348,7 +346,7 @@ class M3U8Parser {
     return .uri(line)
   }
   
-  static func parse(string: String, onParseTag: M3U8Decoder.OnParseTag?) throws -> NSMutableDictionary {
+  static func parse(string: String, parseHandler: M3U8Decoder.ParseHandler?) throws -> NSMutableDictionary {
     var lines = [String]()
     string.enumerateLines { line, stop in
       guard !line.isEmpty else {
@@ -373,7 +371,7 @@ class M3U8Parser {
       .forEach { i, line in
         group.enter()
         DispatchQueue.global().async {
-          items[i] = parse(line: line, onParseTag: onParseTag)
+          items[i] = parse(line: line, parseHandler: parseHandler)
           group.leave()
         }
       }

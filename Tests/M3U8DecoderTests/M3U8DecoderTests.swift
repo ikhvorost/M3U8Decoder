@@ -260,7 +260,7 @@ final class M3U8_All: XCTestCase {
     }
     
     let decoder = M3U8Decoder()
-    decoder.onParseTag = { (tag: String, attributes: String) -> M3U8Decoder.ParseCommand in
+    decoder.parseHandler = { (tag: String, attributes: String) -> M3U8Decoder.ParseAction in
       if tag == "EXT-CUSTOM-TAG" {
         do {
           if let data = attributes.data(using: .utf8) {

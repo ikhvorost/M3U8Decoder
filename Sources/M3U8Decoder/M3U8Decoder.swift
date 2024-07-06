@@ -184,13 +184,13 @@ public class M3U8Decoder {
   /// The strategy to use in decoding binary data. Defaults to `.hex`.
   public var dataDecodingStrategy: DataDecodingStrategy = .hex
   
-  public enum ParseCommand {
+  public enum ParseAction {
     case parse
     case parsed(Any)
   }
   
-  public typealias OnParseTag = (String, String) -> ParseCommand
-  public var onParseTag: OnParseTag?
+  public typealias ParseHandler = (String, String) -> ParseAction
+  public var parseHandler: ParseHandler?
   
   private var decoder: JSONDecoder {
     let decoder = JSONDecoder()
@@ -202,8 +202,10 @@ public class M3U8Decoder {
     switch keyDecodingStrategy {
       case .snakeCase:
         decoder.keyDecodingStrategy = .snakeCase
+        
       case .camelCase:
         decoder.keyDecodingStrategy = .camelCase
+        
       case let .custom(f):
         decoder.keyDecodingStrategy = .custom {
           let key = $0.last!.stringValue
@@ -215,6 +217,7 @@ public class M3U8Decoder {
     switch dataDecodingStrategy {
       case .hex:
         decoder.dataDecodingStrategy = .hex
+        
       case .base64:
         decoder.dataDecodingStrategy = .base64
     }
@@ -234,7 +237,7 @@ public class M3U8Decoder {
   /// - Returns: A value of the requested type.
   /// - Throws: An error if any value throws an error during decoding.
   public func decode<T: Decodable>(_ type: T.Type, from string: String) throws -> T {
-    let dict = try M3U8Parser.parse(string: string, onParseTag: onParseTag)
+    let dict = try M3U8Parser.parse(string: string, parseHandler: parseHandler)
     let data = try JSONSerialization.data(withJSONObject: dict)
     return try decoder.decode(type, from: data)
   }
