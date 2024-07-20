@@ -73,8 +73,13 @@ class M3U8Parser {
   private static let regexByterange = try! NSRegularExpression(pattern: "(\\d+)@?(\\d*)")
   private static let regexResolution = try! NSRegularExpression(pattern: "(\\d+)x(\\d+)")
   
-  private static let arrayTags = ["EXT-X-MEDIA", "EXT-X-I-FRAME-STREAM-INF"]
+  private static let arrayTags: [String] = [
+    "EXT-X-MEDIA",
+    "EXT-X-I-FRAME-STREAM-INF"
+  ]
+  
   private static let variantStreamTag = "EXT-X-STREAM-INF"
+  
   private static let mediaSegmentTags: [String] = [
     "EXTINF",
     "EXT-X-BYTERANGE",
@@ -357,7 +362,7 @@ class M3U8Parser {
       stop = trimmed == "#EXT-X-ENDLIST"
     }
     
-    // Validate: #EXTM3U
+    // It MUST be the first line of every Media Playlist and every Master Playlist.
     guard lines.first == "#EXTM3U" else {
       throw M3U8Decoder.Error.notPlaylist
     }

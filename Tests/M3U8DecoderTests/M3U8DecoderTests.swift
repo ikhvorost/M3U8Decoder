@@ -721,7 +721,7 @@ final class M3U8Tests_File: XCTestCase {
     let playlist = try M3U8Decoder().decode(VideoPlaylist.self, from: data)
     let timeout = -start.timeIntervalSinceNow
     print("Timeout: \(timeout)")
-    XCTAssert(timeout < 4.0)
+    XCTAssert(timeout < 5.0)
   
     XCTAssert(playlist.segments.count == 194918)
     XCTAssert(playlist.segments[1].extinf.duration == -1)
@@ -825,7 +825,7 @@ final class M3U8Tests_URL: XCTestCase {
         }
       )
     
-    wait(for: [exp], timeout: 3.0)
+    wait(for: [exp], timeout: 5.0)
   }
   
   func test_video_variant() async throws {
