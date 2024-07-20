@@ -1,4 +1,4 @@
-[![Swift: 5.9, 5.8, 5.7](https://img.shields.io/badge/Swift-5.9%20|%205.8%20|%205.7%20-de5d43.svg?style=flat&logo=swift)](https://developer.apple.com/swift)
+[![Swift: 5.10, 5.9, 5.8, 5.7](https://img.shields.io/badge/Swift-5.10%20|%205.9%20|%205.8%20|%205.7-de5d43.svg?style=flat&logo=swift)](https://developer.apple.com/swift)
 ![Platforms: iOS, macOS, tvOS, visionOS, watchOS](https://img.shields.io/badge/Platforms-iOS%20|%20macOS%20|%20tvOS%20|%20visionOS%20|%20watchOS-blue.svg?style=flat&logo=apple)
 [![Swift Package Manager: compatible](https://img.shields.io/badge/Swift%20Package%20Manager-compatible-4BC51D.svg?style=flat&logo=apple)](https://swift.org/package-manager/)
 [![Build](https://github.com/ikhvorost/M3U8Decoder/actions/workflows/swift.yml/badge.svg)](https://github.com/ikhvorost/M3U8Decoder/actions/workflows/swift.yml)
@@ -13,7 +13,7 @@
 
 # M3U8Decoder 
 
-Decoder for Media Playlist of [HTTP Live Streaming](https://datatracker.ietf.org/doc/html/rfc8216) using `Decodable` protocol.
+Decoder for Master and Media Playlists of [HTTP Live Streaming](https://datatracker.ietf.org/doc/html/rfc8216) using `Decodable` protocol.
 
 - [Overview](#overview)
 - [Key decoding strategy](#key-decoding-strategy)
@@ -21,57 +21,72 @@ Decoder for Media Playlist of [HTTP Live Streaming](https://datatracker.ietf.org
 - [Predefined types](#predefined-types)
 - [Custom tags and attributes](#custom-tags-and-attributes)
 - [Combine](#combine)
-- [async\/await](#asyncawait)
 - [Installation](#installation)
 - [License](#license)
 
 ## Overview
 
-The example below shows how to decode an instance of a simple `Playlist` type from a provided text of Media Playlist. The type adopts `Decodable` so that it’s decodable using a `M3U8Decoder` instance.
+The example below shows how to decode a simple Media Playlist from a provided text. The type adopts `Decodable` so that it’s decodable using a `M3U8Decoder` instance.
 
 ```swift
 import M3U8Decoder
 
-struct Playlist: Decodable {
+struct MediaPlaylist: Decodable {
   let extm3u: Bool
   let ext_x_version: Int
   let ext_x_targetduration: Int
   let ext_x_media_sequence: Int
-  let extinf: [EXTINF]
+  let segments: [MediaSegment]
   let comments: [String]
-  let uris: [String]
 }
-    
+
 let m3u8 = """
 #EXTM3U
 #EXT-X-VERSION:7
 #EXT-X-TARGETDURATION:10
-## Created with Unified Streaming Platform
+# Created with Unified Streaming Platform
 #EXT-X-MEDIA-SEQUENCE:2680
 
 #EXTINF:13.333,Sample artist - Sample title
 http://example.com/low.m3u8
 """
-    
-let decoder = M3U8Decoder()
-let playlist = try decoder.decode(Playlist.self, from: m3u8)
 
-print(playlist.extm3u) // Prints: true
-print(playlist.ext_x_version) // Prints: 7
-print(playlist.ext_x_targetduration) // Prints: 10
-print(playlist.ext_x_media_sequence) // Prints: 2680
-print(playlist.extinf[0].duration) // Prints: 13.33
-print(playlist.extinf[0].title!) // Prints: Sample artist - Sample title
-print(playlist.comments[0]) // Prints: Created with Unified Streaming Platform
-print(playlist.uris[0]) // Prints: http://example.com/low.m3u8
+let playlist = try M3U8Decoder().decode(MediaPlaylist.self, from: m3u8)
+print(playlist)
 ```
 
 Where:
--  `EXTINF` is predefined type for `#EXTINF` playlist tag. (See  [Predefined types](#predefined-types))
-- `comments` contains all lines that begin with `#`.
-- `uri` contains all URI lines that identifies a Media Segments or a Playlist files.
+- Predefined `segments` property contains array of `MediaSegment` structs with all parsed media segments tags and url, such as: `#EXTINF`, `#EXT-X-BYTERANGE`, `#EXT-X-DISCONTINUITY`, `#EXT-X-KEY`, `#EXT-X-MAP` `#EXT-X-PROGRAM-DATE-TIME`, `#EXT-X-DATERANGE` (For more info see [Predefined types](#predefined-types))
+- Predefined `comments` property contains all lines that begin with `#`.
 
-`M3U8Decoder` can also decode from `Data` and `URL` instances both synchonously and asynchronously e.g.:
+Prints:
+
+``` swift
+MediaPlaylist(
+  extm3u: true, 
+  ext_x_version: 7, 
+  ext_x_targetduration: 10, 
+  ext_x_media_sequence: 2680, 
+  segments: [
+    M3U8Decoder.MediaSegment(
+      extinf: M3U8Decoder.EXTINF(
+        duration: 13.333, 
+        title: Optional("Sample artist - Sample title")
+      ),
+      ext_x_byterange: nil,
+      ext_x_discontinuity: nil, 
+      ext_x_key: nil, 
+      ext_x_map: nil, 
+      ext_x_program_date_time: nil, 
+      ext_x_daterange: nil, 
+      uri: "http://example.com/low.m3u8"
+    )
+  ], 
+  comments: ["Created with Unified Streaming Platform"]
+)
+```
+
+`M3U8Decoder` can also decode from `Data` and `URL` instances both synchonously and asynchronously (`async/await`). For instance, decoding Master Playlist by url:
 
 ```swift
 import M3U8Decoder
@@ -81,31 +96,73 @@ struct MasterPlaylist: Decodable {
   let ext_x_version: Int
   let ext_x_independent_segments: Bool
   let ext_x_media: [EXT_X_MEDIA]
-  let ext_x_stream_inf: [EXT_X_STREAM_INF]
   let ext_x_i_frame_stream_inf: [EXT_X_I_FRAME_STREAM_INF]
-  let uris: [String]
-
-  var variantStreams: [(inf: EXT_X_STREAM_INF, uri: String)] {
-    Array(zip(ext_x_stream_inf, uris))
-  }
+  let streams: [VariantStream]
 }
 
 let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8")!
-let decoder = M3U8Decoder()
-decoder.decode(MasterPlaylist.self, from: url) { result in
-  switch result {
-  case let .success(playlist):
-    print(playlist.ext_x_independent_segments) // Prints: true
-    print(playlist.variantStreams.count) // Prints: 24
-    print(playlist.variantStreams[0].inf.average_bandwidth!) // Prints: 2168183
-    print(playlist.variantStreams[0].inf.resolution!) // Prints: RESOLUTION(width: 960, height: 540)
-    print(playlist.variantStreams[0].inf.frame_rate!) // Prints: 60.0
-    print(playlist.variantStreams[0].uri) // Prints: v5/prog_index.m3u8
-        
-  case let .failure(error):
-    print(error)
-  }
-}
+let playlist = try M3U8Decoder().decode(MasterPlaylist.self, from: url)
+print(playlist)
+```
+
+Where: 
+- Predefined `streams` property contains array of `VariantStream` structs with parsed `#EXT-X-STREAM-INF` tag and url (For more info see [Predefined types](#predefined-types))
+
+Prints:
+
+``` swift 
+MasterPlaylist(
+  extm3u: true, 
+  ext_x_version: 6, 
+  ext_x_independent_segments: true, 
+  ext_x_media: [
+    M3U8Decoder.EXT_X_MEDIA(
+      type: "AUDIO", 
+      group_id: "aud1", 
+      name: "English", 
+      language: Optional("en"), 
+      assoc_language: nil, 
+      autoselect: Optional(true), 
+      default: Optional(true), 
+      instream_id: nil, 
+      channels: Optional("2"), 
+      forced: nil, 
+      uri: Optional("a1/prog_index.m3u8"), 
+      characteristics: nil
+    ),
+    ...
+  ], 
+  ext_x_i_frame_stream_inf: [
+    M3U8Decoder.EXT_X_I_FRAME_STREAM_INF(
+      bandwidth: 187492, 
+      average_bandwidth: Optional(183689), 
+      codecs: ["avc1.64002a"], 
+      resolution: Optional(M3U8Decoder.RESOLUTION(width: 1920, height: 1080)), 
+      hdcp_level: nil, 
+      video: nil, 
+      uri: "v7/iframe_index.m3u8"
+    ),
+    ...
+  ], 
+  streams: [
+    M3U8Decoder.VariantStream(
+      ext_x_stream_inf: M3U8Decoder.EXT_X_STREAM_INF(
+        bandwidth: 2177116, 
+        average_bandwidth: Optional(2168183), 
+        codecs: ["avc1.640020", "mp4a.40.2"], 
+        resolution: Optional(M3U8Decoder.RESOLUTION(width: 960, height: 540)), 
+        frame_rate: Optional(60.0), 
+        hdcp_level: nil, 
+        audio: Optional("aud1"), 
+        video: nil, 
+        subtitles: Optional("sub1"), 
+        closed_captions: Optional("cc1")
+      ),
+      uri: "v5/prog_index.m3u8"
+    ),
+    ...
+  ]
+)
 ```
 
 ## Key decoding strategy
@@ -114,7 +171,7 @@ The strategy to use for automatically changing the value of keys before decoding
 
 ### `snakeCase`
 
-It's **default** strategy to convert playlist tag and attribute names to snake case.
+It's **default** strategy to convert playlist tags and attribute names to snake case.
 
 1. Converting keys to lower case.
 2. Replaces all `-` with `_`.
@@ -136,11 +193,11 @@ struct Media: Decodable {
   let type: String
   let groupId: String
   let name: String
-  let language: String?
-  let instreamId: String?
+  let language: String
+  let instreamId: String
 }
-    
-struct Playlist: Decodable {
+
+struct MasterPlaylist: Decodable {
   let extm3u: Bool
   let extXVersion: Int
   let extXIndependentSegments: Bool
@@ -153,15 +210,31 @@ let m3u8 = """
 #EXT-X-INDEPENDENT-SEGMENTS
 #EXT-X-MEDIA:TYPE=CLOSED-CAPTIONS,GROUP-ID="cc",NAME="SERVICE1",LANGUAGE="en",INSTREAM-ID="SERVICE1"
 """
-    
+
 let decoder = M3U8Decoder()
 decoder.keyDecodingStrategy = .camelCase
 
-let playlist = try decoder.decode(Playlist.self, from: m3u8)    
-print(playlist.extXVersion) // Prints: 7
-print(playlist.extXIndependentSegments) // Prints: true
-print(playlist.extXMedia[0].type) // Prints: CLOSED-CAPTIONS
-print(playlist.extXMedia[0].groupId) // Prints: cc
+let playlist = try decoder.decode(MasterPlaylist.self, from: m3u8)
+print(playlist)
+```
+
+Prints:
+
+``` swift
+MasterPlaylist(
+  extm3u: true, 
+  extXVersion: 7, 
+  extXIndependentSegments: true, 
+  extXMedia: [
+    Media(
+      type: "CLOSED-CAPTIONS", 
+      groupId: "cc", 
+      name: "SERVICE1", 
+      language: "en", 
+      instreamId: "SERVICE1"
+    )
+  ]
+)
 ```
 
 ### `custom((_ key: String) -> String)`
@@ -173,11 +246,11 @@ struct Media: Decodable {
   let type: String
   let group_id: String
   let name: String
-  let language: String?
-  let instream_id: String?
+  let language: String
+  let instream_id: String
 }
-    
-struct Playlist: Decodable {
+
+struct MasterPlaylist: Decodable {
   let m3u: Bool
   let version: Int
   let independent_segments: Bool
@@ -190,10 +263,9 @@ let m3u8 = """
 #EXT-X-INDEPENDENT-SEGMENTS
 #EXT-X-MEDIA:TYPE=CLOSED-CAPTIONS,GROUP-ID="cc",NAME="SERVICE1",LANGUAGE="en",INSTREAM-ID="SERVICE1"
 """
-    
-let decoder = M3U8Decoder()
 
-// `EXT-X-INDEPENDENT-SEGMENTS` bacomes `independent_segments`
+let decoder = M3U8Decoder()
+// `EXT-X-INDEPENDENT-SEGMENTS` becomes `independent_segments`
 decoder.keyDecodingStrategy = .custom { key in
   key
     .lowercased()
@@ -201,52 +273,66 @@ decoder.keyDecodingStrategy = .custom { key in
     .replacingOccurrences(of: "-x-", with: "")
     .replacingOccurrences(of: "-", with: "_")
 }
-    
-let playlist = try decoder.decode(Playlist.self, from: m3u8)
-print(playlist.version) // Prints: 7
-print(playlist.independent_segments) // Prints: true
-print(playlist.media[0].type) // Prints: CLOSED-CAPTIONS
-print(playlist.media[0].group_id) // Prints: cc
+
+let playlist = try decoder.decode(MasterPlaylist.self, from: m3u8)
+print(playlist)
+```
+
+Prints:
+
+``` swift
+MasterPlaylist(
+  m3u: true, 
+  version: 7, 
+  independent_segments: true, 
+  media: [
+    Media(
+      type: "CLOSED-CAPTIONS", 
+      group_id: "cc", 
+      name: "SERVICE1", 
+      language: "en", 
+      instream_id: "SERVICE1"
+    )
+  ]
+)
 ```
 
 ## Data decoding strategy
 
-The strategy to use for decoding `Data` values.
+The strategies to use for decoding `Data` values.
 
 ### `hex`
 
 Decode the `Data` from a hex string (e.g. `0xa2c4f622...`). This is the default strategy.
 
-Decoding `#EXT-X-KEY` tag with `IV` attribute where data is represented in hex string:
+For instance, decoding `#EXT-X-KEY` tag with `IV` attribute where data is represented in hex string:
 
 ```swift
-struct Playlist: Decodable {
+struct MediaPlaylist: Decodable {
   let extm3u: Bool
   let ext_x_version: Int
-  let ext_x_key: EXT_X_KEY
-  let extinf: [EXTINF]
-  let uris: [String]
+  let segments: [MediaSegment]
 }
 
 let m3u8 = """
 #EXTM3U
 #EXT-X-VERSION:7
+
 #EXT-X-KEY:METHOD=SAMPLE-AES,URI="skd://vod.domain.com/fairplay/d1acadbf70824d178601c2e55675b3b3",IV=0X99b74007b6254e4bd1c6e03631cad15b
 #EXTINF:10,
 http://example.com/low.m3u8
 """
 
-let playlist = try M3U8Decoder().decode(Playlist.self, from: m3u8)
-
-print(playlist.ext_x_version) // Prints: 7
-print(playlist.ext_x_key.method) // Prints: SAMPLE-AES
-print(playlist.ext_x_key.uri) // Prints: skd://vod.domain.com/fairplay/d1acadbf70824d178601c2e55675b3b3
-print(playlist.ext_x_key.iv!) // Prints: 16 bytes
+let playlist = try M3U8Decoder().decode(MediaPlaylist.self, from: m3u8)
+if let iv = playlist.segments.first?.ext_x_key?.iv {
+  print(iv.map { $0 } )
+}
+// Prints: [153, 183, 64, 7, 182, 37, 78, 75, 209, 198, 224, 54, 49, 202, 209, 91]
 ```
 
 ### `base64`
 
-Decode the `Data` from a Base64-encoded string.
+Decoding the `Data` from a Base64-encoded string:
 
 ```swift
 struct Playlist: Decodable {
@@ -263,16 +349,17 @@ let m3u8 = """
 
 let decoder = M3U8Decoder()
 decoder.dataDecodingStrategy = .base64
-    
+
 let playlist = try decoder.decode(Playlist.self, from: m3u8)
-print(playlist.ext_x_version) // Prints: 7
-print(playlist.ext_data) // Prints: 13 bytes
-print(String(data: playlist.ext_data, encoding: .utf8)!) // Prints: Hello Base64!
+let text = String(data: playlist.ext_data, encoding: .utf8)!
+print(text) // Prints: Hello Base64!
 ```
 
 ## Predefined types
 
-There are a list of default predifined sctructs (with `snakeCase` key coding strategy) for all medata tags and attributes from of [HTTP Live Streaming](https://datatracker.ietf.org/doc/html/rfc8216) document that can be used to decode playlists.
+There are a list of predefined types (with `snakeCase` key coding strategy) for all master/media tags and attributes from of [HTTP Live Streaming](https://datatracker.ietf.org/doc/html/rfc8216) document that can be used to decode playlists.
+
+> NOTE: Implementations of these types you can look at [MasterPlaylist.swift](Sources/M3U8Decoder/MasterPlaylist.swift) and [MediaPlaylist.swift](Sources/M3U8Decoder/MediaPlaylist.swift) but anyway **you can make and use your own ones** to decode your playlists.
 
 Type | Tag/Attribute | Description
 -- | -- | --
@@ -288,12 +375,12 @@ Type | Tag/Attribute | Description
 `EXT_X_I_FRAME_STREAM_INF` | `#EXT-X-I-FRAME-STREAM-INF:<attribute-list>` | The EXT-X-I-FRAME-STREAM-INF tag identifies a Media Playlist file containing the I-frames of a multimedia presentation.
 `RESOLUTION` | `RESOLUTION=<width>x<height>` | The value is a decimal-resolution describing the optimal pixel resolution at which to display all the video in the Variant Stream.
 `[String]` | `CODECS="codec1,codec2,..."` | The value is a quoted-string containing a comma-separated list of formats, where each format specifies a media sample type that is present in one or more Renditions specified by the Variant Stream.
-
-Implementations of these structs you can look at [M3U8Tags.swift](Sources/M3U8Decoder/M3U8Tags.swift) but anyway you can make and use your own ones to decode your playlists.
+`MediaSegment` |  `#EXTINF`<br>`#EXT-X-BYTERANGE`<br>`#EXT-X-DISCONTINUITY`<br>`#EXT-X-KEY`<br>`#EXT-X-MAP`<br>`#EXT-X-PROGRAM-DATE-TIME`<br>`#EXT-X-DATERANGE`<br>`<URI>` | Specifies a Media Segment.
+`VariantStream` | `#EXT-X-STREAM-INF`<br>`<URI>` | Specifies a Variant Stream.
 
 ## Custom tags and attributes
 
-You can specify your types for custom tags or attributes with any key decodig strategy to decode your non-standard playlists:
+You can specify your types for custom tags or attributes with any key decoding strategy to decode your non-standard playlists:
 
 ```swift
 let m3u8 = """
@@ -316,21 +403,26 @@ struct CustomPlaylist: Decodable {
   let ext_custom_array: [Int]
 }
 
-do {
-  let playlist = try M3U8Decoder().decode(CustomPlaylist.self, from: m3u8)
-    
-  print(playlist.ext_custom_tag1) // Prints: 1
-  print(playlist.ext_custom_tag2) // Prints: CustomAttributes(value1: 1, value2: 'Text')
-  print(playlist.ext_custom_array) // Prints: [1, 2, 3]
-}
-catch {
-  print(error.description)
-}
+let playlist = try M3U8Decoder().decode(CustomPlaylist.self, from: m3u8)
+print(playlist)
+```
+
+Prints:
+
+``` swift
+CustomPlaylist(
+  ext_custom_tag1: 1, 
+  ext_custom_tag2: CustomAttributes(
+    value1: 1,
+    value2: "Text"
+  ), 
+  ext_custom_array: [1, 2, 3]
+)
 ```
 
 ## Combine
 
-`M3U8Decoder` supporst `TopLevelDecoder` protocol and can be used with Combine framework:
+`M3U8Decoder` supports `TopLevelDecoder` protocol and can be used with Combine framework:
 
 ```swift
 struct MasterPlaylist: Decodable {
@@ -338,9 +430,8 @@ struct MasterPlaylist: Decodable {
   let ext_x_version: Int
   let ext_x_independent_segments: Bool
   let ext_x_media: [EXT_X_MEDIA]
-  let ext_x_stream_inf: [EXT_X_STREAM_INF]
   let ext_x_i_frame_stream_inf: [EXT_X_I_FRAME_STREAM_INF]
-  let uris: [String]
+  let streams: [VariantStream]
 }
 
 let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8")!
@@ -350,48 +441,10 @@ let cancellable = URLSession.shared.dataTaskPublisher(for: url)
   .sink (
     receiveCompletion: { print($0) }, // Prints: finished
     receiveValue: { playlist in
-      print(playlist.ext_x_version) // Prints: 6
-      print(playlist.ext_x_independent_segments) // Prints: true
-      print(playlist.ext_x_media[0]) // Prints: EXT_X_MEDIA(type: "AUDIO", group_id: "aud1", name: "English", language: Optional("en"), assoc_language: nil, autoselect: Optional(true), default: Optional(true), instream_id: nil, channels: Optional("2"), forced: nil, uri: Optional("a1/prog_index.m3u8"), characteristics: nil)
-      print(playlist.uris[0]) // Prints: v5/prog_index.m3u8
+      print(playlist) // Prints: MasterPlaylist(extm3u: true, ext_x_version: 6, ext_x_independent_segments: true, ext_x_media: ...
     }
   )
 ```
-
-> NOTE: Combine is avaliable from macOS 10.15, iOS 13.0, watchOS 6.0 and tvOS 13.0.
-
-## async/await
-
-With `M3U8Decoder` you can decode your data asynchronously with `async`/`await` e.g.:
-
-```swift
-struct MasterPlaylist: Decodable {
-  let extm3u: Bool
-  let ext_x_version: Int
-  let ext_x_independent_segments: Bool
-  let ext_x_media: [EXT_X_MEDIA]
-  let ext_x_stream_inf: [EXT_X_STREAM_INF]
-  let ext_x_i_frame_stream_inf: [EXT_X_I_FRAME_STREAM_INF]
-  let uris: [String]
-}
-
-Task {
-  do {
-    let url = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8")!
-    let playlist = try await M3U8Decoder().decode(MasterPlaylist.self, from: url)
-    
-    print(playlist.ext_x_version) // Prints: 6
-    print(playlist.ext_x_independent_segments) // Prints: true
-    print(playlist.ext_x_media[0]) // Prints: EXT_X_MEDIA(type: "AUDIO", group_id: "aud1", name: "English", language: Optional("en"), assoc_language: nil, autoselect: Optional(true), default: Optional(true), instream_id: nil, channels: Optional("2"), forced: nil, uri: Optional("a1/prog_index.m3u8"), characteristics: nil)
-    print(playlist.uris[0]) // Prints: v5/prog_index.m3u8
-  }
-  catch {
-    print(error.description)
-  }
-}
-```
-
-> NOTE: Asynchonous decoding is avaliable from macOS 10.15, iOS 13.0, watchOS 6.0 and tvOS 13.0.
 
 ## Installation
 
