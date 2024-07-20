@@ -20,6 +20,7 @@ Decoder for Master and Media Playlists of [HTTP Live Streaming](https://datatrac
 - [Data decoding strategy](#data-decoding-strategy)
 - [Predefined types](#predefined-types)
 - [Custom tags and attributes](#custom-tags-and-attributes)
+- [Custom parsing](#custom-parsing)
 - [Combine](#combine)
 - [Installation](#installation)
 - [License](#license)
@@ -417,6 +418,55 @@ CustomPlaylist(
     value2: "Text"
   ), 
   ext_custom_array: [1, 2, 3]
+)
+```
+
+## Custom parsing
+
+`M3U8Decoder` automatically parses all attributes with their values of any tag in the playlist but if you use a complex format (like `json` etc.) it's possible to parse attributes with your code using `parseHandler` callback:
+
+``` swift
+let m3u8 =
+#"""
+#EXTM3U
+#EXT-CUSTOM-TAG:{"duration": 10.3, "title": "Title", "id": 12345}
+"""#
+
+struct CustomTag: Decodable {
+  let duration: Double
+  let title: String
+  let id: Int
+}
+
+struct Playlist: Decodable {
+  let ext_custom_tag: CustomTag
+}
+
+let decoder = M3U8Decoder()
+decoder.parseHandler = { (tag: String, attributes: String) -> M3U8Decoder.ParseAction in
+  if tag == "EXT-CUSTOM-TAG" {
+    do {
+      if let data = attributes.data(using: .utf8) {
+        let dict = try JSONSerialization.jsonObject(with: data)
+        return .parsed(dict)
+      }
+    }
+    catch {
+      print(error)
+    }
+  }
+  return .parse
+}
+
+let playlist = try decoder.decode(Playlist.self, from: m3u8)
+print(playlist)
+```
+
+Prints:
+
+```
+Playlist(
+  ext_custom_tag: CustomTag(duration: 10.3, title: "Title", id: 12345)
 )
 ```
 

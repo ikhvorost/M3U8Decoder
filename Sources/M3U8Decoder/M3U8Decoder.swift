@@ -139,10 +139,6 @@ public class M3U8Decoder {
   public enum Error: String, LocalizedError {
     case notPlaylist = "Not Extended M3U Playlist file."
     case badData = "Bad data."
-    
-    public var errorDescription: String? {
-      self.rawValue
-    }
   }
   
   /// The strategy to use for automatically changing the value of keys before decoding.
