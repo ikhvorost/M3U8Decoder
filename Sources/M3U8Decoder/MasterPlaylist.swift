@@ -146,7 +146,10 @@ public struct EXT_X_I_FRAME_STREAM_INF: Decodable {
   public let uri: String
 }
 
+/// Specifies a Variant Stream by `#EXT-X-STREAM-INF` tag followed by a `<URI>`.
 public struct VariantStream: Decodable {
+  /// Specifies a Variant Stream, which is a set of Renditions that can be combined to play the presentation.
   public let ext_x_stream_inf: EXT_X_STREAM_INF
+  /// Specifies a Media Playlist that carries a Rendition of the Variant Stream.
   public let uri: String
 }

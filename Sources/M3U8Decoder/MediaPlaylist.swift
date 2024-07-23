@@ -109,13 +109,22 @@ public struct EXT_X_BYTERANGE: Decodable {
   public let start: Int?
 }
 
+/// Specifies a Media Segment by a series of tags followed by a `<URI>`.
 public struct MediaSegment: Decodable {
+  /// Specifies the duration of a Media Segment.
   public let extinf: EXTINF
+  /// Indicates that a Media Segment is a sub-range of the resource identified by its URI.
   public let ext_x_byterange: EXT_X_BYTERANGE?
+  /// Indicates a discontinuity between the Media Segment that follows it and the one that preceded it.
   public let ext_x_discontinuity: Bool?
+  /// Media Segments MAY be encrypted.
   public let ext_x_key: EXT_X_KEY?
+  /// Specifies how to obtain the Media Initialization Section required to parse the applicable Media Segments.
   public let ext_x_map: EXT_X_MAP?
+  /// Associates the first sample of a Media Segment with an absolute date and/or time.
   public let ext_x_program_date_time: Date?
+  /// Associates a Date Range (i.e., a range o time defined by a starting and ending date) with a set of attribute value pairs.
   public let ext_x_daterange: EXT_X_DATERANGE?
+  /// Uniform Resource Identifier to play.
   public let uri: String
 }

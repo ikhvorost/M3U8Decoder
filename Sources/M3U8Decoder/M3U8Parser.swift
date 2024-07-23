@@ -329,7 +329,7 @@ class M3U8Parser {
             case .parse:
               parse(tag: tag, attributes: attributes)
               
-            case .parsed(let value):
+            case .apply(let value):
               value
           }
         }

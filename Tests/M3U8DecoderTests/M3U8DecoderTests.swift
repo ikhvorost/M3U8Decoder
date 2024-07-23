@@ -265,7 +265,7 @@ final class M3U8_All: XCTestCase {
         do {
           if let data = attributes.data(using: .utf8) {
             let dict = try JSONSerialization.jsonObject(with: data)
-            return .parsed(dict)
+            return .apply(dict)
           }
         }
         catch {

@@ -448,7 +448,7 @@ decoder.parseHandler = { (tag: String, attributes: String) -> M3U8Decoder.ParseA
     do {
       if let data = attributes.data(using: .utf8) {
         let dict = try JSONSerialization.jsonObject(with: data)
-        return .parsed(dict)
+        return .apply(dict)
       }
     }
     catch {

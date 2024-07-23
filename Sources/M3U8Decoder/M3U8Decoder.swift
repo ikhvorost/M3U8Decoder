@@ -136,8 +136,11 @@ fileprivate extension JSONDecoder.DataDecodingStrategy {
 ///
 public class M3U8Decoder {
   
+  /// Decoding errors.
   public enum Error: String, LocalizedError {
+    /// Not Extended M3U Playlist file.
     case notPlaylist = "Not Extended M3U Playlist file."
+    /// Bad data.
     case badData = "Bad data."
   }
   
@@ -180,12 +183,18 @@ public class M3U8Decoder {
   /// The strategy to use in decoding binary data. Defaults to `.hex`.
   public var dataDecodingStrategy: DataDecodingStrategy = .hex
   
+  /// The policy to pass back to the parsing handler.
   public enum ParseAction {
+    /// Parse the attributes.
     case parse
-    case parsed(Any)
+    /// Apply the attributes.
+    case apply(Any)
   }
   
+  /// The parsing handler function type.
   public typealias ParseHandler = (String, String) -> ParseAction
+  
+  /// The parsing handler to call to parse or apply the attributes.
   public var parseHandler: ParseHandler?
   
   private var decoder: JSONDecoder {
