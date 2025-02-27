@@ -369,20 +369,10 @@ class M3U8Parser {
     
     var items = [Line](repeating: .uri(""), count: lines.count)
     
-    let group = DispatchGroup()
-    
-    lines
-      .enumerated()
-      .forEach { i, line in
-        group.enter()
-        DispatchQueue.global().async {
-          items[i] = parse(line: line, parseHandler: parseHandler)
-          group.leave()
-        }
-      }
-    
-    group.wait()
-    
+    DispatchQueue.concurrentPerform(iterations: lines.count) { i in
+      items[i] = parse(line: lines[i], parseHandler: parseHandler)
+    }
+
     return try json(lines: items)
   }
 }
