@@ -352,7 +352,7 @@ class M3U8Parser {
   }
   
   static func parse(string: String, parseHandler: M3U8Decoder.ParseHandler?) throws -> NSMutableDictionary {
-    var lines = [String]()
+    let lines = SendableArray<String>()
     string.enumerateLines { line, stop in
       guard !line.isEmpty else {
         return
@@ -367,12 +367,12 @@ class M3U8Parser {
       throw M3U8Decoder.Error.notPlaylist
     }
     
-    var items = [Line](repeating: .uri(""), count: lines.count)
+    let items = SendableArray(repeating: Line.uri(""), count: lines.count)
     
-    DispatchQueue.concurrentPerform(iterations: lines.count) { i in
-      items[i] = parse(line: lines[i], parseHandler: parseHandler)
+    DispatchQueue.concurrentPerform(iterations: lines.count) {
+      items[$0] = parse(line: lines[$0], parseHandler: parseHandler)
     }
-
-    return try json(lines: items)
+    
+    return try json(lines: items.array)
   }
 }

@@ -165,7 +165,7 @@ public class M3U8Decoder {
     
     /// Provide a custom conversion from a tag or attribute name in the playlist
     /// to the keys specified by the provided function.
-    case custom((_ key: String) -> String)
+    case custom(@Sendable (_ key: String) -> String)
   }
   
   /// The strategy to use for decoding tag and attribute names. Defaults to `.snakeCase`.
@@ -192,7 +192,7 @@ public class M3U8Decoder {
   }
   
   /// The parsing handler function type.
-  public typealias ParseHandler = (String, String) -> ParseAction
+  public typealias ParseHandler = @Sendable (String, String) -> ParseAction
   
   /// The parsing handler to call to parse or apply the attributes.
   public var parseHandler: ParseHandler?
