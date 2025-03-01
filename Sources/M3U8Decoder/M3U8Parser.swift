@@ -313,6 +313,21 @@ class M3U8Parser {
       : keyValues
   }
   
+  private static func parse(tag: String, attributes: String, parseHandler: M3U8Decoder.ParseHandler?) -> Any {
+    if let parseHandler {
+      switch parseHandler(tag, attributes) {
+        case .parse:
+          return parse(tag: tag, attributes: attributes)
+          
+        case .apply(let value):
+          return value
+      }
+    }
+    else {
+      return parse(tag: tag, attributes: attributes)
+    }
+  }
+  
   private static func parse(line: String, parseHandler: M3U8Decoder.ParseHandler?) -> Line {
     // #EXT
     if line.hasPrefix("#EXT") {
@@ -324,19 +339,7 @@ class M3U8Parser {
         let tag = String(line[tagRange])
         let attributes = String(line[attributesRange])
         
-        let value = if let parseHandler {
-          switch parseHandler(tag, attributes) {
-            case .parse:
-              parse(tag: tag, attributes: attributes)
-              
-            case .apply(let value):
-              value
-          }
-        }
-        else {
-          parse(tag: tag, attributes: attributes)
-        }
-        
+        let value = parse(tag: tag, attributes: attributes, parseHandler: parseHandler)
         return .tag(tag, value)
       }
     }
