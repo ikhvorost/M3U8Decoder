@@ -1,6 +1,6 @@
-//  SendableArray.swift
+//  Atomic.swift
 //
-//  Created by Iurii Khvorost <iurii.khvorost@gmail.com> on 2025/02/28.
+//  Created by Iurii Khvorost <iurii.khvorost@gmail.com> on 2025/03/20.
 //  Copyright © 2025 Iurii Khvorost. All rights reserved.
 //
 //  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,35 +24,65 @@
 
 import Foundation
 
-class SendableArray<T>: @unchecked Sendable {
-  private(set) var array: [T]
+
+@discardableResult
+func synchronized<T>(_ obj: AnyObject, closure: () -> T) -> T {
+  objc_sync_enter(obj)
+  defer {
+    objc_sync_exit(obj)
+  }
+  return closure()
+}
+
+class Atomic<T>: @unchecked Sendable {
+  var _value: T
   
-  var count: Int {
-    array.count
+  public init(_ value: T) {
+    _value = value
   }
   
-  var first: T? {
-    array.first
-  }
-  
-  init() {
-    array = [T]()
-  }
-  
-  init(repeating: T, count: Int) {
-    array = [T](repeating: repeating, count: count)
-  }
-  
-  func append(_ value: T) {
-    array.append(value)
-  }
-  
-  subscript(i: Int) -> T {
+  public var value: T {
     get {
-      array[i]
+      synchronized(self) { _value }
     }
     set {
-      array[i] = newValue
+      synchronized(self) { _value = newValue }
+    }
+  }
+  
+  public func sync<U>(_ closure: (inout T) -> U) -> U {
+    synchronized(self) {
+      closure(&_value)
+    }
+  }
+}
+
+final class AtomicArray<U>: Atomic<Array<U>>, @unchecked Sendable {
+  
+  convenience init(repeating: U, count: Int) {
+    self.init([U](repeating: repeating, count: count))
+  }
+  
+  subscript(i: Int) -> U {
+    get {
+      synchronized(self) { _value[i] }
+    }
+    set {
+      synchronized(self) { _value[i] = newValue }
+    }
+  }
+  
+  var count: Int {
+    synchronized(self) { _value.count }
+  }
+  
+  var first: U? {
+    synchronized(self) { _value.first }
+  }
+  
+  func append(_ item: U) {
+    synchronized(self) {
+      _value.append(item)
     }
   }
 }

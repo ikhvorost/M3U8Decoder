@@ -1,6 +1,8 @@
 import XCTest
 import Combine
-/*@testable*/ import M3U8Decoder
+
+@testable
+import M3U8Decoder
 
 
 final class M3U8_All: XCTestCase {
@@ -549,6 +551,41 @@ final class M3U8_All: XCTestCase {
     XCTAssert(playlist.streams[0].ext_x_stream_inf.subtitles == "sub1")
     XCTAssert(playlist.streams[0].ext_x_stream_inf.closed_captions == "cc")
     XCTAssert(playlist.streams[0].uri == "http://example.com/low.m3u8")
+  }
+  
+  func test_concurent() throws {
+    let text =
+      """
+      #EXTM3U
+      #EXT-X-TARGETDURATION:10
+      
+      #EXTINF:9.009,
+      http://media.example.com/first.ts
+      #EXTINF:9.009,
+      http://media.example.com/second.ts
+      #EXTINF:3.003,
+      http://media.example.com/third.ts
+      """
+    
+    struct Playlist: Decodable {
+      let extm3u: Bool
+      let ext_x_targetduration: Int
+      let segments: [MediaSegment]
+    }
+    
+    let decoder = M3U8Decoder()
+    
+    let playlists = AtomicArray<Playlist?>(repeating: nil, count: 10)
+    DispatchQueue.concurrentPerform(iterations: playlists.count) {
+      playlists[$0] = try? decoder.decode(Playlist.self, from: text)
+    }
+    
+    playlists.value.forEach {
+      XCTAssert($0?.ext_x_targetduration == 10)
+      XCTAssert($0?.segments.count == 3)
+      XCTAssert($0?.segments[0].extinf.duration == 9.009)
+      XCTAssert($0?.segments[0].uri == "http://media.example.com/first.ts")
+    }
   }
 }
 
