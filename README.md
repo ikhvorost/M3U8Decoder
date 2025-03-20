@@ -1,4 +1,4 @@
-[![Swift: 5.10, 5.9, 5.8, 5.7](https://img.shields.io/badge/Swift-5.10%20|%205.9%20|%205.8%20|%205.7-de5d43.svg?style=flat&logo=swift)](https://developer.apple.com/swift)
+[![Swift: 6.0, 5.10, 5.9, 5.8](https://img.shields.io/badge/Swift-6.0%20|%205.10%20|%205.9%20|%205.8%20-de5d43.svg?style=flat&logo=swift)](https://developer.apple.com/swift)
 ![Platforms: iOS, macOS, tvOS, visionOS, watchOS](https://img.shields.io/badge/Platforms-iOS%20|%20macOS%20|%20tvOS%20|%20visionOS%20|%20watchOS-blue.svg?style=flat&logo=apple)
 [![Swift Package Manager: compatible](https://img.shields.io/badge/Swift%20Package%20Manager-compatible-4BC51D.svg?style=flat&logo=apple)](https://swift.org/package-manager/)
 [![Build](https://github.com/ikhvorost/M3U8Decoder/actions/workflows/swift.yml/badge.svg)](https://github.com/ikhvorost/M3U8Decoder/actions/workflows/swift.yml)
