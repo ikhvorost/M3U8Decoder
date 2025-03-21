@@ -1,8 +1,43 @@
 import XCTest
 import Combine
 
-@testable
 import M3U8Decoder
+
+
+class SendableArray<T>: @unchecked Sendable {
+  private var array: [T]
+  
+  private func sync<U>(closure: () -> U) -> U {
+    objc_sync_enter(self)
+    defer {
+      objc_sync_exit(self)
+    }
+    return closure()
+  }
+  
+  init(_ array: [T]) {
+    self.array = array
+  }
+  
+  subscript(i: Int) -> T {
+    get {
+      sync { array[i] }
+    }
+    set {
+      sync { array[i] = newValue }
+    }
+  }
+  
+  var count: Int {
+    sync { array.count }
+  }
+  
+  func forEach(body: (T) -> Void) {
+    sync {
+      array.forEach(body)
+    }
+  }
+}
 
 
 final class M3U8_All: XCTestCase {
@@ -575,12 +610,12 @@ final class M3U8_All: XCTestCase {
     
     let decoder = M3U8Decoder()
     
-    let playlists = AtomicArray<Playlist?>(repeating: nil, count: 10)
+    let playlists = SendableArray([Playlist?](repeating: nil, count: 10))
     DispatchQueue.concurrentPerform(iterations: playlists.count) {
       playlists[$0] = try? decoder.decode(Playlist.self, from: text)
     }
     
-    playlists.value.forEach {
+    playlists.forEach {
       XCTAssert($0?.ext_x_targetduration == 10)
       XCTAssert($0?.segments.count == 3)
       XCTAssert($0?.segments[0].extinf.duration == 9.009)

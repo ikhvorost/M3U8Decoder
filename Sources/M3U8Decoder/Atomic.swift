@@ -37,11 +37,11 @@ func synchronized<T>(_ obj: AnyObject, closure: () -> T) -> T {
 class Atomic<T>: @unchecked Sendable {
   var _value: T
   
-  public init(_ value: T) {
+  init(_ value: T) {
     _value = value
   }
   
-  public var value: T {
+  var value: T {
     get {
       synchronized(self) { _value }
     }
