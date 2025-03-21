@@ -49,12 +49,6 @@ class Atomic<T>: @unchecked Sendable {
       synchronized(self) { _value = newValue }
     }
   }
-  
-  public func sync<U>(_ closure: (inout T) -> U) -> U {
-    synchronized(self) {
-      closure(&_value)
-    }
-  }
 }
 
 final class AtomicArray<U>: Atomic<Array<U>>, @unchecked Sendable {

@@ -134,7 +134,7 @@ fileprivate extension JSONDecoder.DataDecodingStrategy {
 ///     print(playlist.extinf[0].title!) // Prints "Sample artist - Sample title"
 ///     print(playlist.uri[0]) // Prints "http://example.com/low.m3u8"
 ///
-public class M3U8Decoder {
+public final class M3U8Decoder: Sendable {
   
   /// Decoding errors.
   public enum Error: String, LocalizedError {
@@ -168,8 +168,17 @@ public class M3U8Decoder {
     case custom(@Sendable (_ key: String) -> String)
   }
   
+  private let _keyDecodingStrategy = Atomic(KeyDecodingStrategy.snakeCase)
+  
   /// The strategy to use for decoding tag and attribute names. Defaults to `.snakeCase`.
-  public var keyDecodingStrategy: KeyDecodingStrategy = .snakeCase
+  public var keyDecodingStrategy: KeyDecodingStrategy {
+    set {
+      _keyDecodingStrategy.value = newValue
+    }
+    get {
+      _keyDecodingStrategy.value
+    }
+  }
   
   /// The strategy to use for decoding `Data` values.
   public enum DataDecodingStrategy {
@@ -180,8 +189,17 @@ public class M3U8Decoder {
     case base64
   }
   
+  private let _dataDecodingStrategy = Atomic(DataDecodingStrategy.hex)
+  
   /// The strategy to use in decoding binary data. Defaults to `.hex`.
-  public var dataDecodingStrategy: DataDecodingStrategy = .hex
+  public var dataDecodingStrategy: DataDecodingStrategy {
+    set {
+      _dataDecodingStrategy.value = newValue
+    }
+    get {
+      _dataDecodingStrategy.value
+    }
+  }
   
   /// The policy to pass back to the parsing handler.
   public enum ParseAction {
@@ -194,8 +212,17 @@ public class M3U8Decoder {
   /// The parsing handler function type.
   public typealias ParseHandler = @Sendable (String, String) -> ParseAction
   
+  private let _parseHandler = Atomic<ParseHandler?>(nil)
+  
   /// The parsing handler to call to parse or apply the attributes.
-  public var parseHandler: ParseHandler?
+  public var parseHandler: ParseHandler? {
+    set {
+      _parseHandler.value = newValue
+    }
+    get {
+      _parseHandler.value
+    }
+  }
   
   private var decoder: JSONDecoder {
     let decoder = JSONDecoder()
