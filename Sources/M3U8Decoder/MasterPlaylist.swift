@@ -29,7 +29,7 @@ import Foundation
 ///     #EXT-X-SESSION-DATA:<attribute-list>
 ///
 /// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.4.4
-public struct EXT_X_SESSION_DATA: Decodable {
+public struct EXT_X_SESSION_DATA: Decodable, Sendable {
   /// The value of DATA-ID is a quoted-string that identifies a particular data value. This attribute is REQUIRED.
   public let data_id: String
   /// VALUE is a quoted-string.  It contains the data identified by DATA-ID. This attribute is REQUIRED.
@@ -45,7 +45,7 @@ public struct EXT_X_SESSION_DATA: Decodable {
 ///     #EXT-X-START:<attribute-list>
 ///
 /// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.5.2
-public struct EXT_X_START: Decodable {
+public struct EXT_X_START: Decodable, Sendable {
   /// The value of TIME-OFFSET is a signed-decimal-floating-point number of seconds. This attribute is REQUIRED.
   public let time_offset: Int
   /// The value is an enumerated-string; valid strings are YES and NO. This attribute is OPTIONAL.
@@ -57,7 +57,7 @@ public struct EXT_X_START: Decodable {
 ///     #EXT-X-MEDIA:<attribute-list>
 ///
 /// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.4.1
-public struct EXT_X_MEDIA: Decodable {
+public struct EXT_X_MEDIA: Decodable, Sendable {
   /// The value is an enumerated-string; valid strings are AUDIO, VIDEO, SUBTITLES, and CLOSED-CAPTIONS. This attribute is REQUIRED.
   public let type: String
   /// The value is a quoted-string that specifies the group to which the Rendition belongs. This attribute is REQUIRED.
@@ -89,7 +89,7 @@ public struct EXT_X_MEDIA: Decodable {
 ///     RESOLUTION=<width>x<height>
 ///
 /// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.4.2
-public struct RESOLUTION: Decodable {
+public struct RESOLUTION: Decodable, Sendable {
   /// Width of a video.
   public let width: Int
   /// Height of a video.
@@ -101,7 +101,7 @@ public struct RESOLUTION: Decodable {
 ///     #EXT-X-STREAM-INF:<attribute-list>
 ///
 /// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.4.2
-public struct EXT_X_STREAM_INF: Decodable {
+public struct EXT_X_STREAM_INF: Decodable, Sendable {
   /// The value is a decimal-integer of bits per second. This attribute is REQUIRED.
   public let bandwidth: Int
   /// The value is a decimal-integer of bits per second. This attribute is OPTIONAL.
@@ -129,7 +129,7 @@ public struct EXT_X_STREAM_INF: Decodable {
 ///     #EXT-X-I-FRAME-STREAM-INF:<attribute-list>
 ///
 /// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.4.3
-public struct EXT_X_I_FRAME_STREAM_INF: Decodable {
+public struct EXT_X_I_FRAME_STREAM_INF: Decodable, Sendable {
   /// The value is a decimal-integer of bits per second. This attribute is REQUIRED.
   public let bandwidth: Int
   /// The value is a decimal-integer of bits per second. This attribute is OPTIONAL.
@@ -147,7 +147,7 @@ public struct EXT_X_I_FRAME_STREAM_INF: Decodable {
 }
 
 /// Specifies a Variant Stream by `#EXT-X-STREAM-INF` tag followed by a `<URI>`.
-public struct VariantStream: Decodable {
+public struct VariantStream: Decodable, Sendable {
   /// Specifies a Variant Stream, which is a set of Renditions that can be combined to play the presentation.
   public let ext_x_stream_inf: EXT_X_STREAM_INF
   /// Specifies a Media Playlist that carries a Rendition of the Variant Stream.
