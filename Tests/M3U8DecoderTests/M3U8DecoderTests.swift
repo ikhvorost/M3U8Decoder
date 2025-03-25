@@ -4,7 +4,7 @@ import Combine
 import M3U8Decoder
 
 
-class SendableArray<T>: @unchecked Sendable {
+fileprivate class SendableArray<T>: @unchecked Sendable {
   private var array: [T]
   
   private func sync<U>(closure: () -> U) -> U {

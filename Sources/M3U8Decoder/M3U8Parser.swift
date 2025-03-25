@@ -65,7 +65,7 @@ fileprivate enum Line {
   case uri(String)
 }
 
-class M3U8Parser {
+final class M3U8Parser: Sendable {
   
   private static let regexExtTag = try! NSRegularExpression(pattern: "^#(EXT[^:]+):?(.*)$", options: [])
   private static let regexAttributes = try! NSRegularExpression(pattern: #"([^=,\s]+)=((\\?"[^\\"]+)|(\\?'[^\\']+)|([^,\s]+))"#)
