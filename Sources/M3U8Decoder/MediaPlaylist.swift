@@ -31,7 +31,7 @@ import Foundation
 ///     #EXT-X-MAP:<attribute-list>
 ///
 /// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.5
-public struct EXT_X_MAP: Decodable {
+public struct EXT_X_MAP: Decodable, Sendable {
   /// The value is a quoted-string containing a URI that identifies a resource that contains the Media Initialization Section. This attribute is REQUIRED.
   public let uri: String
   /// The value is a quoted-string specifying a byte range into the resource identified by the URI attribute. This attribute is OPTIONAL.
@@ -44,7 +44,7 @@ public struct EXT_X_MAP: Decodable {
 ///     #EXT_X_SESSION_KEY:<attribute-list>
 ///
 /// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.4
-public struct EXT_X_KEY: Decodable {
+public struct EXT_X_KEY: Decodable, Sendable {
   /// The value is an enumerated-string that specifies the encryption method. This attribute is REQUIRED.
   public let method: String
   /// The value is a quoted-string that specifies how the key is represented in the resource identified by the URI. This attribute is OPTIONAL.
@@ -62,7 +62,7 @@ public struct EXT_X_KEY: Decodable {
 ///     #EXT-X-DATERANGE:<attribute-list>
 ///
 /// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.7
-public struct EXT_X_DATERANGE: Decodable {
+public struct EXT_X_DATERANGE: Decodable, Sendable {
   /// A quoted-string that uniquely identifies a Date Range in the Playlist. This attribute is REQUIRED.
   public let id: String
   /// A client-defined quoted-string that specifies some set of attributes and their associated value semantics. This attribute is OPTIONAL.
@@ -90,7 +90,7 @@ public struct EXT_X_DATERANGE: Decodable {
 ///     #EXTINF:<duration>,[<title>]
 ///
 /// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.1
-public struct EXTINF: Decodable {
+public struct EXTINF: Decodable, Sendable {
   /// Specifies the duration of the Media Segment in seconds. This attribute is REQUIRED.
   public let duration: Double
   /// Human-readable informative title of the Media Segment. This attribute is OPTIONAL.
@@ -102,7 +102,7 @@ public struct EXTINF: Decodable {
 ///     #EXT-X-BYTERANGE:<n>[@<o>]
 ///
 /// RFC: https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.2
-public struct EXT_X_BYTERANGE: Decodable {
+public struct EXT_X_BYTERANGE: Decodable, Sendable {
   /// n is a decimal-integer indicating the length of the sub-range in bytes. This attribute is REQUIRED.
   public let length: Int
   /// o is a decimal-integer indicating the start of the sub-range, as a byte offset from the beginning of the resource. This attribute is OPTIONAL.
@@ -110,7 +110,7 @@ public struct EXT_X_BYTERANGE: Decodable {
 }
 
 /// Specifies a Media Segment by a series of tags followed by a `<URI>`.
-public struct MediaSegment: Decodable {
+public struct MediaSegment: Decodable, Sendable {
   /// Specifies the duration of a Media Segment.
   public let extinf: EXTINF
   /// Indicates that a Media Segment is a sub-range of the resource identified by its URI.
